@@ -1,12 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_all
+
+datas = [('logo.png', '.')]
+binaries = []
+hiddenimports = []
+datas += collect_data_files('certifi')
+tmp_ret = collect_all('selenium')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
     ['map_loader.py'],
     pathex=[],
-    binaries=[],
-    datas=[('logo.png', '.')],
-    hiddenimports=['selenium.webdriver.edge.options', 'selenium.webdriver.chrome.options'],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

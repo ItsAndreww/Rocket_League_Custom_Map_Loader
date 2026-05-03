@@ -24,6 +24,16 @@ def _base_dir():
 def _data_dir():
     return _base_dir()
 
+def resource_path(relative_path):
+    """ Отримує шлях до ресурсів, адаптований для PyInstaller """
+    try:
+        # PyInstaller створює тимчасову папку _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -884,7 +894,7 @@ class MapLoaderApp(tk.Tk):
         bar = ttk.Frame(self, padding=6)
         bar.pack(fill='x')
 
-        logo_path = os.path.join(_base_dir(), 'logo.png')
+        logo_path = resource_path('logo.png')
         if os.path.isfile(logo_path):
             try:
                 img = Image.open(logo_path)
@@ -921,7 +931,7 @@ class MapLoaderApp(tk.Tk):
         bottom_frame = ttk.Frame(self)
         bottom_frame.pack(side='bottom', fill='x', padx=15, pady=(0, 5))
         
-        logo_path = os.path.join(_base_dir(), 'logo.png')
+        logo_path = resource_path('logo.png')
         if os.path.isfile(logo_path):
             try:
                 img = Image.open(logo_path)
@@ -1026,7 +1036,7 @@ class MapLoaderApp(tk.Tk):
             messagebox.showerror(self._t('error_title'), self._t('launch_failed', error=e))
 
     def _tray_icon_image(self):
-        logo_path = os.path.join(_base_dir(), 'logo.png')
+        logo_path = resource_path('logo.png')
         if os.path.isfile(logo_path):
             try:
                 return Image.open(logo_path).convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
