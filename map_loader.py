@@ -40,11 +40,10 @@ import time
 import string
 import logging
 
-# ── Selenium & Webdriver Manager (ГЛОБАЛЬНИЙ ІМПОРТ ДЛЯ PYINSTALLER) ──
+# ── Selenium & Webdriver Manager ──
 os.environ['WDM_LOG']       = '0'
 os.environ['WDM_LOG_LEVEL'] = '0'
-os.environ['WDM_SSL_VERIFY']= '0'  # Допомагає уникнути блокування антивірусом/брандмауером
-# Я прибрав WDM_LOCAL, щоб дозволити завантаження драйвера!
+os.environ['WDM_SSL_VERIFY']= '0'
 logging.getLogger('WDM').setLevel(logging.ERROR)
 
 from selenium import webdriver
@@ -55,7 +54,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# PyInstaller тепер точно побачить і запакує ці бібліотеки
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
@@ -84,7 +82,7 @@ except ImportError:
 
 
 # ════════════════════════════════════════════════════════════════
-# CONSTANTS
+# CONSTANTS & LANGUAGES
 # ════════════════════════════════════════════════════════════════
 
 CUSTOM_MAP_EXTENSIONS = {'.upk', '.udk', '.pak', '.udatasmith', '.rli'}
@@ -102,7 +100,7 @@ CURRENT_LANGUAGE = 'en'
 LANGUAGES = {
     'uk': {
         'search': 'Пошук', 'page': 'Сторінка',
-        'app_title': 'Rocket League Custom Map Loader',
+        'app_title': 'Rocket League Custom Map Loader made by ItsAndreww',
         'local_maps_tab': 'Локальні карти',
         'download_maps_tab': 'Завантажити карти',
         'custom_maps_folder': 'Папка з кастомними картами:',
@@ -119,11 +117,6 @@ LANGUAGES = {
         'download_list': 'Завантажити список карт з BakkesMod',
         'download': 'Завантажити', 'language': 'Мова:',
         'launch_game': 'Запустити гру',
-        'browse_custom_tooltip': 'Оберіть папку, де зберігаються ваші кастомні карти',
-        'browse_rl_tooltip': 'Коренева папка гри Rocket League',
-        'browse_maps_tooltip': 'Папка всередині RL, де зберігаються файли карт',
-        'refresh_lists_tooltip': 'Перезавантажити списки карт з вибраних папок',
-        'replace_map_tooltip': 'Замінити вибрану стандартну карту на кастомну з бекапом',
         'close_behavior': 'Дія при закритті:',
         'restore_and_exit': 'Відновити і вийти',
         'minimize_to_tray': 'Сховати в трей',
@@ -164,7 +157,7 @@ LANGUAGES = {
     },
     'en': {
         'search': 'Search', 'page': 'Page',
-        'app_title': 'Rocket League Custom Map Loader',
+        'app_title': 'Rocket League Custom Map Loader made by ItsAndreww',
         'local_maps_tab': 'Local Maps',
         'download_maps_tab': 'Download Maps',
         'custom_maps_folder': 'Custom maps folder:',
@@ -181,11 +174,6 @@ LANGUAGES = {
         'download_list': 'Load BakkesMod map list',
         'download': 'Download', 'language': 'Language:',
         'launch_game': 'Launch Game',
-        'browse_custom_tooltip': 'Select the folder where your custom maps are stored',
-        'browse_rl_tooltip': 'Rocket League root folder (where TAGame is located)',
-        'browse_maps_tooltip': 'Folder inside RL where map files are stored',
-        'refresh_lists_tooltip': 'Reload map lists from selected folders',
-        'replace_map_tooltip': 'Replace selected standard map with custom map and create a backup',
         'close_behavior': 'Close behavior:',
         'restore_and_exit': 'Restore and exit',
         'minimize_to_tray': 'Minimize to tray',
@@ -319,15 +307,12 @@ def _find_driver(browser: str):
 
 
 def _chromium_options(browser: str, download_dir: str = None):
-    """Build Edge or Chrome options suitable for headless Cloudflare bypass."""
     opts = webdriver.EdgeOptions() if browser == 'edge' else webdriver.ChromeOptions()
-    
-    # === ЗНОВУ ХОВАЄМО БРАУЗЕР ДАЛЕКО ===
     opts.add_argument('--window-position=-32000,-32000') 
     opts.add_argument('--window-size=1280,720')
     opts.add_argument('--no-sandbox')
     opts.add_argument('--disable-dev-shm-usage')
-    opts.add_argument('--disable-gpu') # Додаємо для стабільності прихованого вікна
+    opts.add_argument('--disable-gpu')
     opts.add_argument('--log-level=3')
     opts.add_argument('--disable-blink-features=AutomationControlled')
 
@@ -373,8 +358,6 @@ def create_webdriver(browser: str, download_dir: str = None):
         return d
 
     last_error = None
-    
-    # Спроба 1: Локальний драйвер
     local = _find_driver(browser)
     if local:
         try:
@@ -383,14 +366,12 @@ def create_webdriver(browser: str, download_dir: str = None):
         except Exception as e:
             last_error = e
 
-    # Спроба 2: Системний авто-делект
     try:
         svc = EdgeService() if browser == 'edge' else ChromeService()
         return _try_service(svc)
     except Exception as e:
         last_error = e
 
-    # Спроба 3: Webdriver Manager (завантаження з інтернету)
     try:
         if browser == 'edge':
             svc = EdgeService(EdgeChromiumDriverManager().install())
@@ -400,7 +381,6 @@ def create_webdriver(browser: str, download_dir: str = None):
     except Exception as e:
         last_error = e
 
-    # Якщо нічого не спрацювало - кидаємо помилку, щоб користувач її побачив
     if last_error:
         raise last_error
     return None
@@ -416,11 +396,8 @@ def _get_driver(download_dir: str = None):
                     return d
             except Exception as e:
                 err_msgs.append(f"{browser.upper()}: {str(e)}")
-    
-    # Якщо браузери встановлені, але драйвери не запустилися - показуємо чому
     if err_msgs:
         raise RuntimeError("Помилка ініціалізації драйверів:\n\n" + "\n".join(err_msgs))
-        
     raise RuntimeError(tr('browser_not_found'))
 
 
@@ -438,51 +415,37 @@ def _wait_cf(driver, timeout: int = 15):
 # ════════════════════════════════════════════════════════════════
 
 def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
-    """
-    ОПТИМІЗОВАНИЙ ПОШУК ЧЕРЕЗ URL ПАРАМЕТРИ
-    """
     import re as _re
     BASE = 'https://bakkesplugins.com'
     driver = None
-
     try:
         driver = _get_driver()
-        
-        # Формуємо URL відразу з параметрами пошуку та сторінки
         url = f"{BASE}/maps"
         params = []
         if search_query:
             params.append(f"search={urllib.parse.quote(search_query)}")
         if page > 1:
             params.append(f"page={page}")
-        
         if params:
             url += "?" + "&".join(params)
-            
         driver.get(url)
-        _wait_cf(driver) # Чекаємо Cloudflare[cite: 1]
-
-        # Даємо трохи часу на завантаження елементів
+        _wait_cf(driver)
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/maps/']"))
             )
         except Exception:
             pass
-
         html = driver.page_source
-
     except Exception as e:
         raise RuntimeError(str(e)) from e
     finally:
         if driver:
             try: driver.quit()
             except Exception: pass
-
     soup = BeautifulSoup(html, 'html.parser')
     maps = []
     seen = set()
-
     for a in soup.find_all('a', href=_re.compile(r'^/maps/\d+$')):
         href = a.get('href', '')
         mid  = _re.search(r'/maps/(\d+)$', href)
@@ -490,11 +453,9 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
         mid  = mid.group(1)
         if mid in seen: continue
         seen.add(mid)
-
         text   = a.get_text(separator=' ', strip=True)
         rm     = _re.search(r'(⭐\s*\d+(?:\.\d+)?(?:\s*\(\d+\))?)', text)
         rating = rm.group(1) if rm else ''
-
         title_el = a.find(['h3', 'h2', 'h1', 'strong'])
         if title_el:
             title = title_el.get_text(strip=True)
@@ -503,13 +464,11 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             title = _re.sub(r'⭐\s*\d+(?:\.\d+)?(?:\s*\(\d+\))?\s*', '', title)
             title = _re.sub(r'^v\d+\.\d+\S*\s+', '', title).strip()[:80]
         title = title or tr('unknown_map')
-
         img     = a.find('img')
         preview = None
         if img:
             s = img.get('src') or img.get('data-src', '')
             if s and s.startswith('http'): preview = s
-
         maps.append({
             'title':       title,
             'map_id':      mid,
@@ -517,7 +476,6 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             'preview_url': preview,
             'rating':      rating.strip() if rating else '',
         })
-
     return maps
 
 
@@ -526,13 +484,10 @@ def download_map_natively(map_info: dict) -> tuple:
     page_url = map_info.get('page_url', '')
     if not page_url:
         raise Exception("Не знайдено посилання на сторінку карти.")
-
     temp_dl_dir = os.path.abspath(tempfile.mkdtemp())
     driver      = None
-
     try:
         driver = _get_driver(download_dir=temp_dl_dir)
-
         try:
             driver.execute_cdp_cmd('Page.setDownloadBehavior', {
                 'behavior':     'allow',
@@ -540,12 +495,9 @@ def download_map_natively(map_info: dict) -> tuple:
             })
         except Exception:
             pass
-
         driver.get(page_url)
         _wait_cf(driver, timeout=20)
         time.sleep(3) 
-
-        # 1. ШУКАЄМО І КЛІКАЄМО ПО СТРІЛОЧЦІ
         try:
             script_click_arrow = """
             var btns = Array.from(document.querySelectorAll('button'));
@@ -564,10 +516,7 @@ def download_map_natively(map_info: dict) -> tuple:
                 arrow_btn.click()
         except Exception:
             pass
-
         time.sleep(1.5)
-
-        # 2. ШУКАЄМО І КЛІКАЄМО "Download ZIP"
         clicked = False
         try:
             script_click_zip = """
@@ -604,8 +553,6 @@ def download_map_natively(map_info: dict) -> tuple:
                         break
         except Exception:
             pass
-
-        # 3. ЗАПАСНИЙ ПЛАН ЧЕРЕЗ API
         if not clicked:
             fallback_script = """
             var mapId = window.location.pathname.split('/').filter(Boolean).pop();
@@ -625,20 +572,15 @@ def download_map_natively(map_info: dict) -> tuple:
             }
             """
             driver.execute_script(fallback_script)
-
-        # 4. ЧЕКАЄМО НА ПОЯВУ ФАЙЛУ
         timeout     = 180  
         start       = time.time()
         dl_file     = None
         started     = False
-
         while time.time() - start < timeout:
             files = os.listdir(temp_dl_dir)
             if files:
                 started = True
-            
             done = [f for f in files if not f.endswith('.crdownload') and not f.endswith('.tmp')]
-            
             if done:
                 path = os.path.join(temp_dl_dir, done[0])
                 s1   = os.path.getsize(path)
@@ -650,18 +592,14 @@ def download_map_natively(map_info: dict) -> tuple:
                 if not started and time.time() - start > 35:
                     raise RuntimeError('Завантаження не почалося.')
             time.sleep(1)
-
         if not dl_file:
             raise RuntimeError('Час очікування завантаження вийшов.')
-
         with open(dl_file, 'rb') as f:
             data = f.read()
         name = os.path.basename(dl_file)
-
         driver.quit(); driver = None
         shutil.rmtree(temp_dl_dir, ignore_errors=True)
         return data, name
-
     except Exception as e:
         if driver:
             try: driver.quit()
@@ -669,10 +607,6 @@ def download_map_natively(map_info: dict) -> tuple:
         shutil.rmtree(temp_dl_dir, ignore_errors=True)
         raise e
 
-
-# ════════════════════════════════════════════════════════════════
-# FILE UTILITIES
-# ════════════════════════════════════════════════════════════════
 
 def extract_map_from_zip(zip_path: str, dest_folder: str):
     with zipfile.ZipFile(zip_path, 'r') as zf:
@@ -724,10 +658,6 @@ def download_image(url: str):
         return None
 
 
-# ════════════════════════════════════════════════════════════════
-# ROCKET LEAGUE DETECTION
-# ════════════════════════════════════════════════════════════════
-
 def find_rocket_league_root():
     pf   = os.environ.get('PROGRAMFILES',      r'C:\Program Files')
     pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
@@ -742,10 +672,8 @@ def find_rocket_league_root():
             os.path.isdir(os.path.join(p, 'TAGame')) or
             os.path.isdir(os.path.join(p, 'Binaries'))
         )
-
     for p in common:
         if _valid(p): return p
-
     drives = [f'{d}:' for d in string.ascii_uppercase if os.path.exists(f'{d}:')]
     suffixes = [
         r'SteamLibrary\steamapps\common\rocketleague',
@@ -809,10 +737,6 @@ def list_standard_maps(maps_folder: str) -> list:
     return sorted(out)
 
 
-# ════════════════════════════════════════════════════════════════
-# UI HELPERS
-# ════════════════════════════════════════════════════════════════
-
 class Tooltip:
     def __init__(self, widget, text):
         self.widget  = widget
@@ -820,7 +744,6 @@ class Tooltip:
         self.tip_win = None
         widget.bind('<Enter>', self._show)
         widget.bind('<Leave>', self._hide)
-
     def _show(self, _event):
         if self.tip_win: return
         try:
@@ -837,7 +760,6 @@ class Tooltip:
                  bg='#333' if dark else '#ffffcc',
                  fg='#fff' if dark else '#000',
                  relief='solid', borderwidth=1, padx=5, pady=2).pack()
-
     def _hide(self, _event):
         if self.tip_win:
             self.tip_win.destroy()
@@ -851,7 +773,7 @@ class Tooltip:
 class MapLoaderApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Rocket League Custom Map Loader')
+        self.title(tr('app_title'))
         self.geometry('1280x660')
         self.resizable(False, False)
 
@@ -882,8 +804,6 @@ class MapLoaderApp(tk.Tk):
         self._apply_win_style()
         self.protocol('WM_DELETE_WINDOW', self._on_close)
         self.auto_detect_rl()
-
-    # ── helpers ───────────────────────────────────────────────
 
     def _set_lang(self, code):
         global CURRENT_LANGUAGE
@@ -922,7 +842,6 @@ class MapLoaderApp(tk.Tk):
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
-
         def _scroll(event):
             try:
                 if not canvas.winfo_exists(): return
@@ -945,8 +864,6 @@ class MapLoaderApp(tk.Tk):
         self.dl_status_var.set(msg)
         self._progress_frame.pack_forget()
 
-    # ── UI build ──────────────────────────────────────────────
-
     def _build_ui(self):
         self.title(self._t('app_title'))
         self.notebook = ttk.Notebook(self)
@@ -961,11 +878,12 @@ class MapLoaderApp(tk.Tk):
         self.notebook.add(df, text=self._t('download_maps_tab'))
         self._build_download_tab(df)
 
+        self._build_bottom_logo()
+
     def _build_topbar(self):
         bar = ttk.Frame(self, padding=6)
         bar.pack(fill='x')
 
-        # Logo
         logo_path = os.path.join(_base_dir(), 'logo.png')
         if os.path.isfile(logo_path):
             try:
@@ -999,19 +917,31 @@ class MapLoaderApp(tk.Tk):
         ttk.Button(bar, text=self._t('launch_game'),
                    command=self._launch_rl).pack(side='right', padx=4)
 
+    def _build_bottom_logo(self):
+        bottom_frame = ttk.Frame(self)
+        bottom_frame.pack(side='bottom', fill='x', padx=15, pady=(0, 5))
+        
+        logo_path = os.path.join(_base_dir(), 'logo.png')
+        if os.path.isfile(logo_path):
+            try:
+                img = Image.open(logo_path)
+                tiny = img.resize((20, 20), Image.Resampling.LANCZOS)
+                self._bottom_logo_img = ImageTk.PhotoImage(tiny)
+                ttk.Label(bottom_frame, image=self._bottom_logo_img).pack(side='left', padx=(0, 5))
+            except Exception:
+                pass
+        
+        ttk.Label(bottom_frame, text="made by ItsAndreww", font=('Arial', 8, 'italic'), foreground='gray').pack(side='left')
+
     def _build_local_tab(self, parent):
         f = ttk.Frame(parent, padding=12)
         f.pack(fill='both', expand=True)
-
-        # 1. ПЕРЕМІЩЕНО НАВЕРХ: Інфо про вибрані мапи
         sel = ttk.Frame(f)
         sel.pack(fill='x', pady=(0, 10))
         ttk.Label(sel, text=self._t('selected_custom')).pack(side='left')
         ttk.Label(sel, textvariable=self.sel_custom, foreground='#0078d4', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
         ttk.Label(sel, text=self._t('selected_standard')).pack(side='left', padx=(20, 0))
         ttk.Label(sel, textvariable=self.sel_standard, foreground='#d83b01', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
-
-        # Шляхи до папок
         def row(label_key, var, browse_cmd, extra_btn=None):
             r = ttk.Frame(f); r.pack(fill='x', pady=2)
             ttk.Label(r, text=self._t(label_key), width=25).pack(side='left')
@@ -1019,59 +949,47 @@ class MapLoaderApp(tk.Tk):
             ttk.Button(r, text=self._t('browse'), command=browse_cmd).pack(side='left')
             if extra_btn:
                 ttk.Button(r, **extra_btn).pack(side='left', padx=4)
-
         row('custom_maps_folder', self.custom_folder, self._browse_custom)
         row('rl_root',            self.rl_root_var,   self._browse_rl,
             extra_btn={'text': self._t('auto_detect'), 'command': self.auto_detect_rl})
         row('maps_folder',        self.maps_folder,   self._update_maps_folder,
             extra_btn={'text': self._t('refresh'), 'command': self._update_maps_folder})
-
         cols = ttk.Frame(f); cols.pack(fill='both', expand=True, pady=8)
-
         def col(title_key):
             lf = ttk.LabelFrame(cols, text=self._t(title_key))
             lf.pack(side='left', fill='both', expand=True, padx=4)
             return self._make_scrollable(lf)
-
         _, self._custom_frame      = col('custom_maps')
         _, self._replace_frame     = col('replacement_history')
         _, self._standard_frame    = col('standard_maps')
-
         btns = ttk.Frame(f); btns.pack(fill='x', pady=8)
         rb = ttk.Button(btns, text=self._t('refresh_lists'), command=self._refresh_all)
         rb.pack(side='left', padx=10)
         rpb = ttk.Button(btns, text=self._t('replace_map'), command=self._do_replace, style='Accent.TButton')
         rpb.pack(side='right', padx=10)
-
         ttk.Label(f, textvariable=self.status_var, foreground='blue').pack(anchor='w')
 
     def _build_download_tab(self, parent):
         f = ttk.Frame(parent, padding=12)
         f.pack(fill='both', expand=True)
-
         top = ttk.Frame(f); top.pack(fill='x', pady=6)
         ttk.Entry(top, textvariable=self.search_var, width=30).pack(side='left', padx=(0, 5))
         ttk.Button(top, text=self._t('search'),
                    command=lambda: self.load_bakkes_maps(reset=True)).pack(side='left')
-
         self._btn_prev = ttk.Button(top, text='◄', width=3, command=self._prev_page, state='disabled')
         self._btn_prev.pack(side='left', padx=(30, 5))
         self._page_lbl = tk.StringVar(value=f"{self._t('page')} 1")
         ttk.Label(top, textvariable=self._page_lbl, font=('Arial', 10, 'bold')).pack(side='left', padx=5)
         self._btn_next = ttk.Button(top, text='►', width=3, command=self._next_page, state='disabled')
         self._btn_next.pack(side='left', padx=5)
-
         self._progress_frame = ttk.Frame(f)
         self._progress_frame.pack(fill='x', pady=(0, 4))
         self._progress = ttk.Progressbar(self._progress_frame, mode='indeterminate')
         self._progress.pack(fill='x', expand=True)
         ttk.Label(self._progress_frame, textvariable=self.dl_status_var).pack(anchor='w', pady=(2, 0))
         self._progress_frame.pack_forget()
-
         lf = ttk.Frame(f); lf.pack(fill='both', expand=True)
         _, self._dl_frame = self._make_scrollable(lf)
-
-    # ── top-bar callbacks ──────────────────────────────────────
 
     def _on_lang_change(self, _=None):
         disp = self.language_opt.get()
@@ -1107,15 +1025,14 @@ class MapLoaderApp(tk.Tk):
         except Exception as e:
             messagebox.showerror(self._t('error_title'), self._t('launch_failed', error=e))
 
-    # ── tray ──────────────────────────────────────────────────
-
     def _tray_icon_image(self):
-        logo = os.path.join(_base_dir(), 'logo.png')
-        if os.path.isfile(logo):
+        logo_path = os.path.join(_base_dir(), 'logo.png')
+        if os.path.isfile(logo_path):
             try:
-                return Image.open(logo).convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
+                return Image.open(logo_path).convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
             except Exception:
                 pass
+        
         img  = Image.new('RGB', (64, 64), (0, 102, 204))
         draw = ImageDraw.Draw(img)
         draw.rectangle((16, 16, 48, 48), fill=(255, 255, 255))
@@ -1149,8 +1066,6 @@ class MapLoaderApp(tk.Tk):
         self._build_ui()
         self._refresh_all()
 
-    # ── browse / detect ───────────────────────────────────────
-
     def _browse_custom(self):
         p = filedialog.askdirectory()
         if p:
@@ -1177,8 +1092,6 @@ class MapLoaderApp(tk.Tk):
         else:
             self.maps_folder.set(''); self.status_var.set(self._t('maps_folder_not_found'))
 
-    # ── local maps tab ────────────────────────────────────────
-
     def _refresh_all(self):
         self._refresh_custom(); self._refresh_standard(); self._render_replacements()
 
@@ -1192,18 +1105,13 @@ class MapLoaderApp(tk.Tk):
         for m in list_standard_maps(self.maps_folder.get()):
             self._std_tile(self._standard_frame, m)
 
-    # 2. ОНОВЛЕНО: Зміна кольору при виборі
     def _custom_tile(self, parent, name):
         row = ttk.Frame(parent)
         row.pack(fill='x', pady=1, padx=2)
-        
-        # Якщо мапа вибрана — міняємо стиль (використовуємо Accent для видимості)
         btn_style = 'Accent.TButton' if self.sel_custom.get() == name else 'TButton'
-        
         btn = ttk.Button(row, text=name, width=28, style=btn_style,
                          command=lambda n=name: self._select_map(n, True))
         btn.pack(side='left', fill='x', expand=True, padx=(0, 2))
-        
         del_btn = ttk.Button(row, text='✕', width=3, command=lambda: self._delete_custom(name))
         del_btn.pack(side='right')
 
@@ -1215,7 +1123,7 @@ class MapLoaderApp(tk.Tk):
     def _select_map(self, name, is_custom):
         if is_custom:
             self.sel_custom.set(name)
-            self._refresh_custom() # Перемальовуємо, щоб оновити кольори кнопок
+            self._refresh_custom()
         else:
             self.sel_standard.set(name)
             self._refresh_standard()
@@ -1266,7 +1174,6 @@ class MapLoaderApp(tk.Tk):
             messagebox.showerror(self._t('error_title'), self._t('error_custom_not_found')); return
         if not os.path.isfile(sp):
             messagebox.showerror(self._t('error_title'), self._t('error_standard_not_found')); return
-
         base, ext  = os.path.splitext(sm)
         bak_name   = base + '_backup' + ext
         bak_path   = os.path.join(mf, bak_name)
@@ -1291,8 +1198,6 @@ class MapLoaderApp(tk.Tk):
                 if os.path.isfile(bak_path): os.replace(bak_path, sp)
             except Exception: pass
 
-    # ── download tab ──────────────────────────────────────────
-
     def _update_page_ui(self):
         self._page_lbl.set(f"{self._t('page')} {self.current_page}")
         self._btn_prev.config(state='disabled' if self.current_page <= 1 else 'normal')
@@ -1310,7 +1215,6 @@ class MapLoaderApp(tk.Tk):
             self._update_page_ui()
         self._show_progress(self._t('loading_maps'))
         p, q = self.current_page, self.search_var.get().strip()
-
         def _fetch():
             try:
                 maps = get_bakkes_maps(page=p, search_query=q)
@@ -1320,25 +1224,20 @@ class MapLoaderApp(tk.Tk):
                 self.after(0, self._hide_progress)
                 self.after(0, lambda msg=err: messagebox.showerror(
                     self._t('error_title'), self._t('error_load_maps', error=msg)))
-
         threading.Thread(target=_fetch, daemon=True).start()
 
     def _show_map_list(self, maps):
         self.bakkes_maps = maps
         for w in self._dl_frame.winfo_children(): w.destroy()
         self._hide_progress()
-
         if not maps:
             ttk.Label(self._dl_frame, text=self._t('no_maps_found')).pack(pady=10)
             self._btn_next.config(state='normal' if len(maps) >= 10 else 'disabled')
             return
-
         self._btn_next.config(state='normal' if len(maps) >= 10 else 'disabled')
-
         COLS = 4
         for i in range(COLS):
             self._dl_frame.columnconfigure(i, weight=1, pad=10)
-
         for idx, m in enumerate(maps):
             r, c = divmod(idx, COLS)
             tile = ttk.Frame(self._dl_frame, relief='raised', borderwidth=2)
@@ -1348,14 +1247,12 @@ class MapLoaderApp(tk.Tk):
     def _build_dl_tile(self, tile, m):
         img_lbl = ttk.Label(tile)
         img_lbl.pack(side='top', padx=5, pady=5)
-
         info = ttk.Frame(tile); info.pack(side='top', fill='both', expand=True, padx=5, pady=5)
         ttk.Label(info, text=m['title'], font=('Arial', 10, 'bold'),
                   wraplength=220, justify='center').pack(anchor='center', pady=(0, 4))
         if m.get('rating'):
             ttk.Label(info, text=m['rating'], foreground='#b8860b',
                       font=('Arial', 9, 'bold')).pack(anchor='center', pady=(0, 4))
-
         folder     = self.custom_folder.get().strip()
         safe_title = sanitize_filename(m['title'])
         downloaded = folder and any(
@@ -1366,7 +1263,6 @@ class MapLoaderApp(tk.Tk):
                    if downloaded else self._t('download')
         ttk.Button(info, text=btn_text,
                    command=lambda mi=m: self._download_map(mi)).pack(anchor='center', side='bottom', pady=4)
-
         def _fetch_img():
             photo = download_image(m.get('preview_url'))
             if photo:
@@ -1380,7 +1276,6 @@ class MapLoaderApp(tk.Tk):
             messagebox.showerror(self._t('error_title'), self._t('error_no_custom_folder')); return
         title = m.get('title', 'map').strip()
         self._show_progress(self._t('downloading_map', title=title))
-
         def _do():
             try:
                 raw, fname = download_map_natively(m)
@@ -1402,7 +1297,6 @@ class MapLoaderApp(tk.Tk):
                     if ext not in CUSTOM_MAP_EXTENSIONS: ext = '.upk'
                     dest = normalize_path(os.path.join(folder, sanitize_filename(title) + ext))
                     with open(dest, 'wb') as fh: fh.write(raw)
-
                 self.after(0, self._hide_progress)
                 self.after(0, lambda: messagebox.showinfo(
                     self._t('info_title'), self._t('download_complete', title=title)))
@@ -1412,9 +1306,7 @@ class MapLoaderApp(tk.Tk):
                 self.after(0, self._hide_progress)
                 self.after(0, lambda msg=err: messagebox.showerror(
                     self._t('error_title'), self._t('error_download_failed', error=msg)))
-
         threading.Thread(target=_do, daemon=True).start()
-
 
 if __name__ == '__main__':
     app = MapLoaderApp()
