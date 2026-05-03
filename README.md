@@ -13,7 +13,7 @@ A GUI-based utility for managing custom maps in Rocket League. This application 
 
 ## Usage
 
-### Standalone Executable
+### Standalone Executable (Exe file)
 
 If you do not have Python installed, you can download the latest standalone version from the **[Releases](https://github.com/ItsAndreww/Rocket_League_Custom_Map_Loader/releases)** section. No additional dependencies are required for the compiled version.
 
