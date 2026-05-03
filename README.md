@@ -5,6 +5,7 @@
 <h1 align="center">RLCML</h1>
 
 <p align="center">
+  <a href="README_UA.md">Українська версія 🇺🇦</a>
   <a href="https://donatello.to/itsandrewini">Support me</a>
 </p>
 
@@ -32,33 +33,37 @@ python map_loader.py
 
 ### Replacing a Local Map
 
-1.Open the **Local Maps** tab.  
+![Local Maps](Screenshots/Localmaps.png)
 
-2.Specify your **Custom maps folder** where you store downloaded map files.  
+1. Open the **Local Maps** tab.  
 
-3.Click **Auto detect** to let the application find your Rocket League installation path.  
+2. Specify your **Custom maps folder** where you store downloaded map files.  
 
-4.In the **Custom Maps** list, click on your desired map (e.g., Dribble_Challenge.upk). The button will turn blue to indicate selection.  
+3. Click **Auto detect** to let the application find your Rocket League installation path.  
 
-5.In the **Standard Maps** list, click on a target map to be replaced (e.g., labs_underpass_p). The button will turn orange.  
+4. In the **Custom Maps** list, click on your desired map (e.g., Dribble_Challenge.upk). The button will turn blue to indicate selection.  
 
-6.Click **Replace Map**. The application swaps the files and creates a backup of the original map automatically.  
+5. In the **Standard Maps** list, click on a target map to be replaced (e.g., labs_underpass_p). The button will turn orange.  
 
-7.Click **Launch Game** to start Rocket League with the new map installed, and start a freeplay map you replaced (e.g. Dribble_Challenge.upk -> Labs_Underpass_P.upk or in game Labs Underpass).
+6. Click **Replace Map**. The application swaps the files and creates a backup of the original map automatically.  
+
+7. Click **Launch Game** to start Rocket League with the new map installed, and start a freeplay map you replaced (e.g. Dribble_Challenge.upk -> Labs_Underpass_P.upk or in game Labs Underpass).
 
 ### Downloading and Installing a New Map
 
-1.Navigate to the **Download Maps** tab.  
+![Online Maps Downloading](Screenshots/Onlinemaps.png)
 
-2.Enter a search term (e.g., "Rings") in the search bar and click **Search**.  
+1. Navigate to the **Download Maps** tab.  
 
-3.Find the map you want in the results and click **Download**.  
+2. Enter a search term (e.g., "Rings") in the search bar and click **Search**.  
 
-4.The application opens a background browser, bypasses Cloudflare, and downloads the file.  
+3. Find the map you want in the results and click **Download**.  
 
-5.If the map is in a **ZIP archive**, the application **automatically extracts** the correct map file to your designated custom maps folder.  
+4. The application opens a background browser, bypasses Cloudflare, and downloads the file.  
 
-6.Return to the **Local Maps** tab and click Refresh Lists to see your new map.
+5. If the map is in a **ZIP archive**, the application **automatically extracts** the correct map file to your designated custom maps folder.  
+
+6. Return to the **Local Maps** tab and click Refresh Lists to see your new map.
 
 ## Core Features
 
