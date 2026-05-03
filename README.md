@@ -5,7 +5,7 @@
 <h1 align="center">RLCML</h1>
 
 <p align="center">
-  <a href="README_UA.md">Українська версія 🇺🇦</a>
+  <a href="README_UA.md">Українська версія</a>
   <a href="https://donatello.to/itsandrewini">Support me</a>
 </p>
 
@@ -15,7 +15,7 @@ A GUI-based utility for managing custom maps in Rocket League. This application 
 
 ### Standalone Executable
 
-If you do not have Python installed, you can download the latest standalone version from the **Releases** section. No additional dependencies are required for the compiled version.
+If you do not have Python installed, you can download the latest standalone version from the **[Releases](https://github.com/ItsAndreww/Rocket_League_Custom_Map_Loader/releases)** section. No additional dependencies are required for the compiled version.
 
 ### Running from Source
 
