@@ -4,7 +4,7 @@
     "maps_folder": "",
     "language": "en",
     "launch_args": "",
-    "close_action": "",
+    "close_action": "restore_and_exit",
     "theme": "dark",
     "auto_update": true
 }

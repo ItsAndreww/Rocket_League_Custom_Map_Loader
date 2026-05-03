@@ -1,4 +1,4 @@
-VERSION = "1.0.1"  # Поточна версія
+VERSION = "1.0.2"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" # Наприклад: ItsAndreww/RL-Map-Loader
 
 import os
@@ -175,6 +175,26 @@ LANGUAGES = {
         'extracting_zip': 'Розпакування архіву...',
         'no_map_in_zip': 'У ZIP не знайдено файлів карт.',
         'browser_not_found': 'Браузер не знайдено. Встановіть Edge або Chrome.',
+        'help_tab': 'Інструкція',
+        'help_text': '''Як користуватись програмою:
+        1. Перше налаштування:
+        • Створіть або оберіть папку на комп'ютері, де будуть зберігатись ваші кастомні карти (наприклад, "C:\\RL_Maps").
+        • Натисніть "Автодетект" або вручну вкажіть шлях до папки з грою Rocket League (там, де лежить RocketLeague.exe).
+
+        2. Встановлення карти у гру:
+        • У вкладці "Локальні карти" оберіть кастомну карту зліва.
+        • Оберіть стандартну карту (яку не шкода замінити, зазвичай це Underpass) справа.
+        • Натисніть "Замінити карту". Програма автоматично зробить бекап оригінальної карти.
+        • Натисніть "Запустити гру". У грі створіть приватний матч або тренування на тій стандартній карті, яку ви замінили.
+
+        3. Завантаження нових карт:
+        • Перейдіть у вкладку "Завантажити карти".
+        • Знайдіть потрібну карту через пошук і натисніть "Завантажити". Вона автоматично розпакується у вашу папку кастомних карт.
+
+        4. Відновлення оригінальних карт:
+        • Щоб повернути стандартну карту, натисніть "Відновити" у списку "Поточні заміни".
+        • Або просто закрийте програму (якщо на верхній панелі обрано "Відновити і вийти"), і вона автоматично поверне всі карти на місце!
+        ''',
     },
     'en': {
         'search': 'Search', 'page': 'Page',
@@ -232,6 +252,26 @@ LANGUAGES = {
         'extracting_zip': 'Extracting ZIP archive...',
         'no_map_in_zip': 'No map files found in ZIP (.upk/.udk/.pak).',
         'browser_not_found': 'Browser not found. Please install Edge or Chrome.',
+        'help_tab': 'Instructions',
+        'help_text': '''How to use the application:
+        1. Initial Setup:
+        • Choose or create a folder on your PC to store custom maps (e.g., "C:\\RL_Maps").
+        • Click "Auto detect" or manually browse to your Rocket League installation folder.
+
+        2. Playing a Custom Map:
+        • In the "Local Maps" tab, select a custom map from the left list.
+        • Select a standard map to replace (usually Underpass) from the right list.
+        • Click "Replace Map". The app will automatically backup the original map.
+        • Click "Launch Game". In-game, start a private match or training on the standard map you replaced.
+
+        3. Downloading New Maps:
+        • Go to the "Download Maps" tab.
+        • Search for a map and click "Download". It will automatically extract to your custom maps folder.
+
+        4. Restoring Maps:
+        • To restore an original map, click "Undo" in the replacement history list.
+        • Or simply close the app (if "Restore and exit" is selected at the top), and it will restore everything automatically!
+        ''',
     }
 }
 
@@ -892,12 +932,9 @@ class MapLoaderApp(tk.Tk):
     def _build_ui(self):
         self.title(self._t('app_title'))
         
-        # 1. Спочатку створюємо і закріплюємо верхню та нижню панелі
         self._build_topbar()
         self._build_bottom_logo()
         
-        # 2. ТІЛЬКИ ТЕПЕР пакуємо вкладки (notebook). 
-        # Вони ідеально заповнять простір між барами і нічого не виштовхнуть вниз.
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
 
@@ -908,6 +945,11 @@ class MapLoaderApp(tk.Tk):
         df = ttk.Frame(self.notebook)
         self.notebook.add(df, text=self._t('download_maps_tab'))
         self._build_download_tab(df)
+
+        # ── НОВЕ: Вкладка "Інструкція" ──
+        hf = ttk.Frame(self.notebook)
+        self.notebook.add(hf, text=self._t('help_tab'))
+        self._build_help_tab(hf)
 
     def _build_topbar(self):
         bar = ttk.Frame(self, padding=6)
@@ -1037,6 +1079,31 @@ class MapLoaderApp(tk.Tk):
         self._progress_frame.pack_forget()
         lf = ttk.Frame(f); lf.pack(fill='both', expand=True)
         _, self._dl_frame = self._make_scrollable(lf)
+
+    def _build_help_tab(self, parent):
+        f = ttk.Frame(parent, padding=20)
+        f.pack(fill='both', expand=True)
+        
+        # Створюємо текстове поле, яке підтримує скролінг та форматування
+        txt = tk.Text(f, wrap='word', font=('Arial', 11), relief='flat', padx=10, pady=10)
+        txt.pack(side='left', fill='both', expand=True)
+        
+        # Додаємо скролбар
+        sb = ttk.Scrollbar(f, orient='vertical', command=txt.yview)
+        sb.pack(side='right', fill='y')
+        txt.configure(yscrollcommand=sb.set)
+        
+        # Вставляємо текст інструкції
+        txt.insert('1.0', self._t('help_text'))
+        
+        # Робимо текст доступним лише для читання
+        txt.configure(state='disabled')
+        
+        # Налаштовуємо кольори залежно від теми (темна/світла)
+        if HAS_SV_TTK and sv_ttk.get_theme() == 'dark':
+            txt.configure(bg='#1e1e1e', fg='#ffffff', insertbackground='#ffffff')
+        else:
+            txt.configure(bg='#f3f3f3', fg='#000000', insertbackground='#000000')
 
     def _on_lang_change(self, _=None):
         disp = self.language_opt.get()
