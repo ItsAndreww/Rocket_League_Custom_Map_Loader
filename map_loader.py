@@ -1,4 +1,4 @@
-VERSION = "1.0.2"  # Поточна версія
+VERSION = "1.0.1"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" # Наприклад: ItsAndreww/RL-Map-Loader
 
 import os
@@ -1495,8 +1495,11 @@ class MapLoaderApp(tk.Tk):
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення завантажено! Програма зараз перезапуститься."))
 
                     # 3. Перезапускаємо новий ексешнік і вбиваємо поточний процес
-                    subprocess.Popen([exe_path])
-                    os._exit(0)
+                    subprocess.Popen([exe_path], close_fds=True)
+                    
+                    # М'яко закриваємо поточну програму, щоб PyInstaller встиг видалити сміття
+                    self.after(0, self.destroy)
+                    return
                 else:
                     self.after(0, self._hide_progress)
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення працює тільки для скомпільованого .exe файлу."))
