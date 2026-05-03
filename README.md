@@ -32,6 +32,8 @@ python map_loader.py
 
 ### Replacing a Local Map
 
+![Main Screen](Screenshots/Localmaps.png)
+
 1.Open the **Local Maps** tab.  
 
 2.Specify your **Custom maps folder** where you store downloaded map files.  
@@ -47,6 +49,8 @@ python map_loader.py
 7.Click **Launch Game** to start Rocket League with the new map installed, and start a freeplay map you replaced (e.g. Dribble_Challenge.upk -> Labs_Underpass_P.upk or in game Labs Underpass).
 
 ### Downloading and Installing a New Map
+
+![Online Maps Downloading](Screenshots/Onlinemaps.png)
 
 1.Navigate to the **Download Maps** tab.  
 
