@@ -1,9 +1,10 @@
 {
-    "custom_maps_folder": "C:/Games/rocketleague/TAGame/CookedPCConsole/Maps",
-    "rl_root": "C:\\Games\\rocketleague",
-    "maps_folder": "C:\\Games\\rocketleague\\TAGame\\CookedPCConsole",
+    "custom_maps_folder": "",
+    "rl_root": "",
+    "maps_folder": "",
     "language": "en",
-    "launch_args": "-NoEAC",
-    "close_action": "minimize_to_tray",
-    "theme": "dark"
+    "launch_args": "",
+    "close_action": "",
+    "theme": "dark",
+    "auto_update": true
 }

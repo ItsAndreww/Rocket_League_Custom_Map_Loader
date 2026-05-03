@@ -1,11 +1,22 @@
+VERSION = "1.0.1"  # Поточна версія
+GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" # Наприклад: ItsAndreww/RL-Map-Loader
+
 import os
 import sys
+
 
 # ── PyInstaller / --noconsole fixes ───────────────────────────
 if sys.stdout is None:
     sys.stdout = open(os.devnull, 'w')
 if sys.stderr is None:
     sys.stderr = open(os.devnull, 'w')
+if getattr(sys, 'frozen', False):
+    _old_exe = sys.executable + '.old'
+    if os.path.exists(_old_exe):
+        try:
+            os.remove(_old_exe)
+        except Exception:
+            pass
 
 import subprocess
 if sys.platform == 'win32':
@@ -794,6 +805,7 @@ class MapLoaderApp(tk.Tk):
         self.theme_mode    = tk.StringVar(value=self._cfg.get('theme', 'dark'))
         self.language_opt  = tk.StringVar(value=LANGUAGE_NAMES.get(self.lang, 'English'))
         self.close_code    = tk.StringVar(value=self._cfg.get('close_action', 'restore_and_exit'))
+        self.auto_update_var = tk.BooleanVar(value=self._cfg.get('auto_update', True))
 
         self.custom_folder = tk.StringVar(value=self._cfg.get('custom_maps_folder', ''))
         self.rl_root_var   = tk.StringVar(value=self._cfg.get('rl_root', ''))
@@ -814,6 +826,8 @@ class MapLoaderApp(tk.Tk):
         self._apply_win_style()
         self.protocol('WM_DELETE_WINDOW', self._on_close)
         self.auto_detect_rl()
+        self.after(1000, lambda: self.load_bakkes_maps(reset=True))
+        self.after(3000, self.check_for_updates)
 
     def _set_lang(self, code):
         global CURRENT_LANGUAGE
@@ -831,6 +845,7 @@ class MapLoaderApp(tk.Tk):
             'custom_maps_folder': self.custom_folder.get(),
             'rl_root':           self.rl_root_var.get(),
             'maps_folder':       self.maps_folder.get(),
+            'auto_update':       self.auto_update_var.get(),
         })
         save_config(self._cfg)
 
@@ -876,9 +891,15 @@ class MapLoaderApp(tk.Tk):
 
     def _build_ui(self):
         self.title(self._t('app_title'))
+        
+        # 1. Спочатку створюємо і закріплюємо верхню та нижню панелі
+        self._build_topbar()
+        self._build_bottom_logo()
+        
+        # 2. ТІЛЬКИ ТЕПЕР пакуємо вкладки (notebook). 
+        # Вони ідеально заповнять простір між барами і нічого не виштовхнуть вниз.
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
-        self._build_topbar()
 
         lf = ttk.Frame(self.notebook)
         self.notebook.add(lf, text=self._t('local_maps_tab'))
@@ -887,8 +908,6 @@ class MapLoaderApp(tk.Tk):
         df = ttk.Frame(self.notebook)
         self.notebook.add(df, text=self._t('download_maps_tab'))
         self._build_download_tab(df)
-
-        self._build_bottom_logo()
 
     def _build_topbar(self):
         bar = ttk.Frame(self, padding=6)
@@ -924,6 +943,16 @@ class MapLoaderApp(tk.Tk):
         close_cb.pack(side='left', padx=4)
         close_cb.bind('<<ComboboxSelected>>', self._on_close_action_change)
 
+        # ── НОВЕ: Галочка автооновлення на верхній панелі ──
+        auto_update_text = "Автооновлення" if self.lang == 'uk' else "Auto-update"
+        ttk.Checkbutton(
+            bar, 
+            text=auto_update_text, 
+            variable=self.auto_update_var, 
+            command=self._save_cfg
+        ).pack(side='left', padx=(15, 4))
+
+        # Кнопка запуску гри (праворуч)
         ttk.Button(bar, text=self._t('launch_game'),
                    command=self._launch_rl).pack(side='right', padx=4)
 
@@ -942,6 +971,14 @@ class MapLoaderApp(tk.Tk):
                 pass
         
         ttk.Label(bottom_frame, text="made by ItsAndreww", font=('Arial', 8, 'italic'), foreground='gray').pack(side='left')
+
+        # Залишаємо тільки версію справа
+        ttk.Label(
+            bottom_frame, 
+            text=f"v{VERSION}", 
+            font=('Arial', 8, 'bold'), 
+            foreground='gray'
+        ).pack(side='right')
 
     def _build_local_tab(self, parent):
         f = ttk.Frame(parent, padding=12)
@@ -1317,6 +1354,95 @@ class MapLoaderApp(tk.Tk):
                 self.after(0, lambda msg=err: messagebox.showerror(
                     self._t('error_title'), self._t('error_download_failed', error=msg)))
         threading.Thread(target=_do, daemon=True).start()
+
+    # ════════════════════════════════════════════════════════════════
+    # AUTO-UPDATE SYSTEM
+    # ════════════════════════════════════════════════════════════════
+
+    def check_for_updates(self):
+        """Перевіряє наявність оновлень на GitHub у фоновому потоці."""
+        # ДОДАНО: Якщо галочка автооновлення знята - не перевіряємо
+        if not self.auto_update_var.get():
+            return
+
+        def _task():
+            # Використовуємо вашу константу GITHUB_REPO
+            api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            try:
+                req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                
+                latest_tag = data.get('tag_name', '').lstrip('v').strip()
+                current_tag = VERSION.lstrip('v').strip() 
+
+                if not latest_tag:
+                    return
+
+                def parse_v(v): 
+                    return tuple(int(x) for x in v.split(".") if x.isdigit())
+
+                parsed_latest = parse_v(latest_tag)
+                parsed_current = parse_v(current_tag)
+
+                if parsed_latest and parsed_current and parsed_latest > parsed_current:
+                    self.after(0, lambda: self._prompt_update(latest_tag, data))
+            except Exception as e:
+                print(f"Помилка перевірки оновлень: {e}")
+
+        threading.Thread(target=_task, daemon=True).start()
+    
+    def _prompt_update(self, latest_tag, release_data):
+        if messagebox.askyesno(self._t('info_title'), f"Знайдено нову версію програми: {latest_tag}.\nОновити зараз?"):
+            self._download_and_apply_update(release_data)
+
+    def _download_and_apply_update(self, release_data):
+        assets = release_data.get('assets', [])
+        # Шукаємо перший-ліпший .exe файл у релізі
+        download_url = next((a['browser_download_url'] for a in assets if a['name'].endswith('.exe')), None)
+
+        if not download_url:
+            messagebox.showerror(self._t('error_title'), "Не знайдено .exe файлу в релізі GitHub.")
+            return
+
+        self._show_progress("Завантаження оновлення...")
+
+        def _do_update():
+            exe_path = sys.executable
+            old_exe_path = exe_path + '.old'
+            
+            try:
+                # Якщо програма запущена як .exe
+                if getattr(sys, 'frozen', False):
+                    # 1. Перейменовуємо поточний ексешнік
+                    if os.path.exists(old_exe_path):
+                        os.remove(old_exe_path)
+                    os.rename(exe_path, old_exe_path)
+
+                    # 2. Завантажуємо новий
+                    req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=60) as response, open(exe_path, 'wb') as out_file:
+                        shutil.copyfileobj(response, out_file)
+
+                    self.after(0, self._hide_progress)
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення завантажено! Програма зараз перезапуститься."))
+
+                    # 3. Перезапускаємо новий ексешнік і вбиваємо поточний процес
+                    subprocess.Popen([exe_path])
+                    os._exit(0)
+                else:
+                    self.after(0, self._hide_progress)
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення працює тільки для скомпільованого .exe файлу."))
+            
+            except Exception as e:
+                self.after(0, self._hide_progress)
+                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Не вдалося оновити: {err}"))
+                
+                # Відновлюємо оригінальну назву, якщо щось зламалося під час скачування
+                if os.path.exists(old_exe_path) and not os.path.exists(exe_path):
+                    os.rename(old_exe_path, exe_path)
+
+        threading.Thread(target=_do_update, daemon=True).start()
 
 if __name__ == '__main__':
     app = MapLoaderApp()
