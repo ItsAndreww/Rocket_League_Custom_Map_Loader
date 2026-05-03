@@ -1,5 +1,5 @@
 VERSION = "1.0.2"  # Поточна версія
-GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" # Наприклад: ItsAndreww/RL-Map-Loader
+GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
 
 import os
 import sys
@@ -1501,6 +1501,7 @@ class MapLoaderApp(tk.Tk):
                 self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Помилка підключення до GitHub:\n{err}"))
 
         threading.Thread(target=_task, daemon=True).start()
+
     
     def _prompt_update(self, latest_tag, release_data):
         if messagebox.askyesno(self._t('info_title'), f"Знайдено нову версію програми: {latest_tag}.\nОновити зараз?"):
@@ -1508,7 +1509,6 @@ class MapLoaderApp(tk.Tk):
 
     def _download_and_apply_update(self, release_data):
         assets = release_data.get('assets', [])
-        # Шукаємо перший-ліпший .exe файл у релізі
         download_url = next((a['browser_download_url'] for a in assets if a['name'].endswith('.exe')), None)
 
         if not download_url:
@@ -1519,30 +1519,45 @@ class MapLoaderApp(tk.Tk):
 
         def _do_update():
             exe_path = sys.executable
+            new_exe_path = exe_path + '.new'
             old_exe_path = exe_path + '.old'
             
             try:
-                # Якщо програма запущена як .exe
                 if getattr(sys, 'frozen', False):
-                    # 1. Перейменовуємо поточний ексешнік
-                    if os.path.exists(old_exe_path):
-                        os.remove(old_exe_path)
-                    os.rename(exe_path, old_exe_path)
-
-                    # 2. Завантажуємо новий
+                    # 1. Завантажуємо новий файл у .new (це абсолютно безпечно, бо файл не запущений)
                     req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=60) as response, open(exe_path, 'wb') as out_file:
+                    with urllib.request.urlopen(req, timeout=60) as response, open(new_exe_path, 'wb') as out_file:
                         shutil.copyfileobj(response, out_file)
 
                     self.after(0, self._hide_progress)
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення завантажено! Програма зараз перезапуститься."))
 
-                    # 3. Перезапускаємо новий ексешнік і вбиваємо поточний процес
-                    subprocess.Popen([exe_path], close_fds=True)
-                    
-                    # М'яко закриваємо поточну програму, щоб PyInstaller встиг видалити сміття
+                    # 2. Створюємо BAT-файл для підміни файлів
+                    import tempfile
+                    bat_path = os.path.join(tempfile.gettempdir(), "rl_updater.bat")
+                    with open(bat_path, "w", encoding="utf-8") as f:
+                        f.write('@echo off\n')
+                        f.write('chcp 65001 > nul\n')
+                        f.write('ping 127.0.0.1 -n 3 > nul\n') # Даємо 2 секунди старій програмі повністю закритись
+                        f.write(f'if exist "{old_exe_path}" del "{old_exe_path}" > nul 2>&1\n')
+                        f.write(f'rename "{exe_path}" "{os.path.basename(old_exe_path)}"\n')
+                        f.write(f'rename "{new_exe_path}" "{os.path.basename(exe_path)}"\n')
+                        f.write(f'start "" "{exe_path}"\n')
+                        f.write('del "%~f0"\n')
+
+                    # 3. ТОТАЛЬНА чистка середовища з-під Python (надійніше ніж BAT-файл)
+                    clean_env = {}
+                    for k, v in os.environ.items():
+                        k_up = k.upper()
+                        # Жорстко вирізаємо всі можливі зачіпки PyInstaller та Tkinter
+                        if 'MEI' not in k_up and 'TCL_' not in k_up and 'TK_' not in k_up and '_PYI' not in k_up:
+                            clean_env[k] = v
+
+                    # 4. Запускаємо BAT-файл ізольовано з ідеально чистим середовищем (без чорного вікна консолі)
+                    subprocess.Popen(['cmd.exe', '/c', bat_path], env=clean_env, creationflags=0x08000000)
+
+                    # 5. М'яко закриваємо поточну програму
                     self.after(0, self.destroy)
-                    return
                 else:
                     self.after(0, self._hide_progress)
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення працює тільки для скомпільованого .exe файлу."))
@@ -1550,10 +1565,10 @@ class MapLoaderApp(tk.Tk):
             except Exception as e:
                 self.after(0, self._hide_progress)
                 self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Не вдалося оновити: {err}"))
-                
-                # Відновлюємо оригінальну назву, якщо щось зламалося під час скачування
-                if os.path.exists(old_exe_path) and not os.path.exists(exe_path):
-                    os.rename(old_exe_path, exe_path)
+                # Якщо сталася помилка, прибираємо недокачаний файл
+                if os.path.exists(new_exe_path):
+                    try: os.remove(new_exe_path)
+                    except: pass
 
         threading.Thread(target=_do_update, daemon=True).start()
 
