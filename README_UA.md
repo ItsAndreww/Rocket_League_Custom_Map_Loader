@@ -15,19 +15,7 @@
 
 ### Автономний виконуваний файл (Exe-файл)
 
-Якщо у вас не встановлено Python, ви можете завантажити останню автономну версію з розділу **Випуски**. Для скомпільованої версії не потрібні додаткові залежності.
-
-### Запуск із вихідного коду (для розробників)
-
-Щоб запустити скрипт безпосередньо, переконайтеся, що у вас встановлено **Python 3.9+** та браузер на базі Chromium (Microsoft Edge або Google Chrome).
-
-**1. Встановіть необхідні залежності:** 
-```bash
-pip install beautifulsoup4 pillow selenium webdriver-manager pystray sv_ttk pywinstyles
-```
-
-**2. Запустіть скрипт:**
-python map_loader.py
+Якщо у вас не встановлено Python, ви можете завантажити останню автономну версію з розділу **[Releases](https://github.com/ItsAndreww/Rocket_League_Custom_Map_Loader/releases/tag/v.1.0.1)**. Для скомпільованої версії не потрібні додаткові залежності. Відразу готова до роботи програма.
 
 ## Приклад використання
 
@@ -95,6 +83,18 @@ python map_loader.py
 ```bash
 python -m PyInstaller --noconsole --onefile --icon=logo.png --add-data «logo.png;.» --collect-all selenium --collect-data certifi map_loader.py
 ```
+
+### Запуск із вихідного коду (для розробників)
+
+Щоб запустити скрипт безпосередньо, переконайтеся, що у вас встановлено **Python 3.9+** та браузер на базі Chromium (Microsoft Edge або Google Chrome).
+
+**1. Встановіть необхідні залежності:** 
+```bash
+pip install beautifulsoup4 pillow selenium webdriver-manager pystray sv_ttk pywinstyles
+```
+
+**2. Запустіть скрипт:**
+python map_loader.py
 
 ## Усунення несправностей
 
