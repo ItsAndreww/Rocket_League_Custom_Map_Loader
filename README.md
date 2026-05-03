@@ -5,7 +5,7 @@
 <h1 align="center">RLCML</h1>
 
 <p align="center">
-  <a href="README_UA.md">Українська версія 🇺🇦</a>
+  <a href="README_UA.md">Українська версія</a>
   <a href="https://donatello.to/itsandrewini">Support me</a>
 </p>
 
