@@ -21,7 +21,7 @@ If you do not have Python installed, you can download the latest standalone vers
 
 ### Replacing a Local Map
 
-![Local Maps](Screenshots/Localmaps.png)
+![Local Maps](Screenshots/Localmap.png)
 
 1. Open the **Local Maps** tab.  
 
@@ -39,7 +39,7 @@ If you do not have Python installed, you can download the latest standalone vers
 
 ### Downloading and Installing a New Map
 
-![Online Maps Downloading](Screenshots/Onlinemaps.png)
+![Online Maps Downloading](Screenshots/Onlinemap.png)
 
 1. Navigate to the **Download Maps** tab.  
 
