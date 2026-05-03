@@ -1,4 +1,4 @@
-VERSION = "1.0.1"  # Поточна версія
+VERSION = "1.0.2"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" # Наприклад: ItsAndreww/RL-Map-Loader
 
 import os
@@ -120,6 +120,8 @@ CURRENT_LANGUAGE = 'en'
 
 LANGUAGES = {
     'uk': {
+        'check_update': 'Перевірити оновлення',
+        'no_updates': 'У вас встановлена остання версія програми!',
         'search': 'Пошук', 'page': 'Сторінка',
         'app_title': 'Rocket League Custom Map Loader made by ItsAndreww',
         'local_maps_tab': 'Локальні карти',
@@ -197,6 +199,8 @@ LANGUAGES = {
         ''',
     },
     'en': {
+        'check_update': 'Check for Updates',
+        'no_updates': 'You have the latest version installed!',
         'search': 'Search', 'page': 'Page',
         'app_title': 'Rocket League Custom Map Loader made by ItsAndreww',
         'local_maps_tab': 'Local Maps',
@@ -994,6 +998,9 @@ class MapLoaderApp(tk.Tk):
             command=self._save_cfg
         ).pack(side='left', padx=(15, 4))
 
+        # ── НОВЕ: Кнопка ручної перевірки оновлень ──
+        ttk.Button(bar, text=self._t('check_update'), command=self.manual_check_for_updates).pack(side='left', padx=4)
+
         # Кнопка запуску гри (праворуч)
         ttk.Button(bar, text=self._t('launch_game'),
                    command=self._launch_rl).pack(side='right', padx=4)
@@ -1456,6 +1463,42 @@ class MapLoaderApp(tk.Tk):
                     self.after(0, lambda: self._prompt_update(latest_tag, data))
             except Exception as e:
                 print(f"Помилка перевірки оновлень: {e}")
+
+        threading.Thread(target=_task, daemon=True).start()
+
+    def manual_check_for_updates(self):
+        """Ручна перевірка оновлень (через кнопку)."""
+        self._show_progress(self._t('check_update') + "...")
+        
+        def _task():
+            api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+            try:
+                req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                
+                latest_tag = data.get('tag_name', '').lstrip('v').strip()
+                current_tag = VERSION.lstrip('v').strip() 
+
+                self.after(0, self._hide_progress)
+
+                if not latest_tag:
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Релізів на GitHub ще немає."))
+                    return
+
+                def parse_v(v): 
+                    return tuple(int(x) for x in v.split(".") if x.isdigit())
+
+                parsed_latest = parse_v(latest_tag)
+                parsed_current = parse_v(current_tag)
+
+                if parsed_latest and parsed_current and parsed_latest > parsed_current:
+                    self.after(0, lambda: self._prompt_update(latest_tag, data))
+                else:
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), self._t('no_updates')))
+            except Exception as e:
+                self.after(0, self._hide_progress)
+                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Помилка підключення до GitHub:\n{err}"))
 
         threading.Thread(target=_task, daemon=True).start()
     
