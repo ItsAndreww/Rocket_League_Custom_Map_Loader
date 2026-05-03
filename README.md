@@ -33,6 +33,7 @@ python map_loader.py
 
 ### Replacing a Local Map
 
+![Local Maps](Screenshots/Localmaps.png)
 
 1. Open the **Local Maps** tab.  
 
