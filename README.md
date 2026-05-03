@@ -17,18 +17,6 @@ A GUI-based utility for managing custom maps in Rocket League. This application 
 
 If you do not have Python installed, you can download the latest standalone version from the **[Releases](https://github.com/ItsAndreww/Rocket_League_Custom_Map_Loader/releases)** section. No additional dependencies are required for the compiled version.
 
-### Running from Source
-
-To run the script directly, ensure you have **Python 3.9+** and a Chromium-based browser (Microsoft Edge or Google Chrome) installed.
-
-**1.Install required dependencies:** 
-```bash
-pip install beautifulsoup4 pillow selenium webdriver-manager pystray sv_ttk pywinstyles
-```
-
-**2.Execute the script:**
-python map_loader.py
-
 ## Usage Example
 
 ### Replacing a Local Map
@@ -95,6 +83,18 @@ To create a standalone one-file executable with all necessary drivers and certif
 ```bash
 python -m PyInstaller --noconsole --onefile --icon=logo.png --add-data "logo.png;." --collect-all selenium --collect-data certifi map_loader.py
 ```
+
+### Running from Source
+
+To run the script directly, ensure you have **Python 3.9+** and a Chromium-based browser (Microsoft Edge or Google Chrome) installed.
+
+**1.Install required dependencies:** 
+```bash
+pip install beautifulsoup4 pillow selenium webdriver-manager pystray sv_ttk pywinstyles
+```
+
+**2.Execute the script:**
+python map_loader.py
 
 ## Troubleshooting
 
