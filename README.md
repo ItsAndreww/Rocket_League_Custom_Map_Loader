@@ -1,4 +1,12 @@
 # Rocket League Custom Map Loader
+<p align="center">
+  <img src="logo.png" alt="Logo" width="200">
+</p>
+<h1 align="center">RLCML</h1>
+
+<p align="center">
+  <a href="https://donatello.to/itsandrewini">Support me</a>
+</p>
 
 A GUI-based utility for managing custom maps in Rocket League. This application automates the process of replacing standard game maps with custom ones while maintaining automatic backups, downloading new maps directly from BakkesMod, and launching the game directly.
 
