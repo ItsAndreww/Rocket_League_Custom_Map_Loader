@@ -3,7 +3,11 @@ GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader"
 
 import os
 import sys
+import concurrent.futures
 
+
+IMG_CACHE = {}
+IMG_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 # ── PyInstaller / --noconsole fixes ───────────────────────────
 if sys.stdout is None:
@@ -120,6 +124,15 @@ CURRENT_LANGUAGE = 'en'
 
 LANGUAGES = {
     'uk': {
+        'always_on_top': 'Завжди поверх інших вікон',
+        'status_ready': 'Готово. Оберіть карти для заміни.',
+        'tt_settings': 'Відкрити налаштування',
+        'tt_theme': 'Змінити тему (Світла/Темна)',
+        'tt_launch': 'Запустити гру',
+        'tt_replace': 'Створити бекап і замінити обрану карту',
+        'settings': 'Налаштування',
+        'save': 'Зберегти',
+        'cancel': 'Скасувати',
         'check_update': 'Перевірити оновлення',
         'no_updates': 'У вас встановлена остання версія програми!',
         'search': 'Пошук', 'page': 'Сторінка',
@@ -179,9 +192,10 @@ LANGUAGES = {
         'browser_not_found': 'Браузер не знайдено. Встановіть Edge або Chrome.',
         'help_tab': 'Інструкція',
         'help_text': '''Як користуватись програмою:
-        1. Перше налаштування:
-        • Створіть або оберіть папку на комп'ютері, де будуть зберігатись ваші кастомні карти (наприклад, "C:\\RL_Maps").
-        • Натисніть "Автодетект" або вручну вкажіть шлях до папки з грою Rocket League (там, де лежить RocketLeague.exe).
+        1. Налаштування:
+        • Перейдіть у "⚙️ Налаштування" на верхній панелі.
+        • Вкажіть шлях до гри Rocket League (натисніть "Автодетект").
+        • Оберіть папку на комп'ютері для кастомних карт (на вкладці "Локальні карти").
 
         2. Встановлення карти у гру:
         • У вкладці "Локальні карти" оберіть кастомну карту зліва.
@@ -195,10 +209,19 @@ LANGUAGES = {
 
         4. Відновлення оригінальних карт:
         • Щоб повернути стандартну карту, натисніть "Відновити" у списку "Поточні заміни".
-        • Або просто закрийте програму (якщо на верхній панелі обрано "Відновити і вийти"), і вона автоматично поверне всі карти на місце!
+        • Або просто закрийте програму (якщо в налаштуваннях обрано "Відновити і вийти"), і вона автоматично поверне всі карти на місце!
         ''',
     },
     'en': {
+        'always_on_top': 'Always on top',
+        'status_ready': 'Ready. Select maps to replace.',
+        'tt_settings': 'Open settings',
+        'tt_theme': 'Toggle theme (Light/Dark)',
+        'tt_launch': 'Launch the game',
+        'tt_replace': 'Backup and replace selected map',
+        'settings': 'Settings',
+        'save': 'Save',
+        'cancel': 'Cancel',
         'check_update': 'Check for Updates',
         'no_updates': 'You have the latest version installed!',
         'search': 'Search', 'page': 'Page',
@@ -258,9 +281,10 @@ LANGUAGES = {
         'browser_not_found': 'Browser not found. Please install Edge or Chrome.',
         'help_tab': 'Instructions',
         'help_text': '''How to use the application:
-        1. Initial Setup:
-        • Choose or create a folder on your PC to store custom maps (e.g., "C:\\RL_Maps").
-        • Click "Auto detect" or manually browse to your Rocket League installation folder.
+        1. Setup:
+        • Go to "⚙️ Settings" on the top bar.
+        • Provide your Rocket League installation path (click "Auto detect").
+        • Choose a folder on your PC to store custom maps (in the "Local Maps" tab).
 
         2. Playing a Custom Map:
         • In the "Local Maps" tab, select a custom map from the left list.
@@ -274,7 +298,7 @@ LANGUAGES = {
 
         4. Restoring Maps:
         • To restore an original map, click "Undo" in the replacement history list.
-        • Or simply close the app (if "Restore and exit" is selected at the top), and it will restore everything automatically!
+        • Or simply close the app (if "Restore and exit" is selected in settings), and it will restore everything automatically!
         ''',
     }
 }
@@ -508,9 +532,11 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
         if driver:
             try: driver.quit()
             except Exception: pass
+            
     soup = BeautifulSoup(html, 'html.parser')
     maps = []
     seen = set()
+    
     for a in soup.find_all('a', href=_re.compile(r'^/maps/\d+$')):
         href = a.get('href', '')
         mid  = _re.search(r'/maps/(\d+)$', href)
@@ -518,9 +544,11 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
         mid  = mid.group(1)
         if mid in seen: continue
         seen.add(mid)
+        
         text   = a.get_text(separator=' ', strip=True)
         rm     = _re.search(r'(⭐\s*\d+(?:\.\d+)?(?:\s*\(\d+\))?)', text)
         rating = rm.group(1) if rm else ''
+        
         title_el = a.find(['h3', 'h2', 'h1', 'strong'])
         if title_el:
             title = title_el.get_text(strip=True)
@@ -529,20 +557,57 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             title = _re.sub(r'⭐\s*\d+(?:\.\d+)?(?:\s*\(\d+\))?\s*', '', title)
             title = _re.sub(r'^v\d+\.\d+\S*\s+', '', title).strip()[:80]
         title = title or tr('unknown_map')
+        
         img     = a.find('img')
         preview = None
         if img:
             s = img.get('src') or img.get('data-src', '')
             if s and s.startswith('http'): preview = s
+
+        # ── РОЗУМНИЙ ПОШУК АВТОРА (Ізольований по картці) ──
+        author = ""
+        
+        # 1. Спочатку шукаємо прямо всередині тега <a>
+        author_span = a.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
+        
+        # 2. Якщо немає, акуратно піднімаємось вгору (але не виходимо за межі поточної картки)
+        if not author_span:
+            parent = a.parent
+            for _ in range(4): # Шукаємо до 4 рівнів вгору
+                if not parent or parent.name == 'body':
+                    break
+                    
+                # Перевіряємо, чи ми не вийшли в загальний "грід" з усіма мапами
+                links = parent.find_all('a', href=_re.compile(r'^/maps/\d+$'))
+                mids = set()
+                for l in links:
+                    m = _re.search(r'/maps/(\d+)', l.get('href', ''))
+                    if m: mids.add(m.group(1))
+                    
+                if len(mids) > 1:
+                    # Якщо в цьому блоці є посилання на ІНШІ мапи — ми вийшли занадто високо! Зупиняємось.
+                    break
+                    
+                author_span = parent.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
+                if author_span:
+                    break
+                parent = parent.parent
+
+        if author_span and author_span.get('title'):
+            author = "By " + author_span.get('title')
+        elif author_span:
+            author = "By " + author_span.get_text(strip=True)
+
         maps.append({
             'title':       title,
             'map_id':      mid,
             'page_url':    BASE + href,
             'preview_url': preview,
             'rating':      rating.strip() if rating else '',
+            'author':      author,
         })
+        
     return maps
-
 
 def download_map_natively(map_info: dict) -> tuple:
     import time
@@ -849,7 +914,11 @@ class MapLoaderApp(tk.Tk):
         self.theme_mode    = tk.StringVar(value=self._cfg.get('theme', 'dark'))
         self.language_opt  = tk.StringVar(value=LANGUAGE_NAMES.get(self.lang, 'English'))
         self.close_code    = tk.StringVar(value=self._cfg.get('close_action', 'restore_and_exit'))
+        self._close_lbl    = tk.StringVar(value=self._t(self.close_code.get()))
         self.auto_update_var = tk.BooleanVar(value=self._cfg.get('auto_update', True))
+        
+        self.always_on_top_var = tk.BooleanVar(value=self._cfg.get('always_on_top', False))
+        self.attributes('-topmost', self.always_on_top_var.get())
 
         self.custom_folder = tk.StringVar(value=self._cfg.get('custom_maps_folder', ''))
         self.rl_root_var   = tk.StringVar(value=self._cfg.get('rl_root', ''))
@@ -869,7 +938,15 @@ class MapLoaderApp(tk.Tk):
         self._build_ui()
         self._apply_win_style()
         self.protocol('WM_DELETE_WINDOW', self._on_close)
-        self.auto_detect_rl()
+        
+        # Перевірка наявності шляхів при старті та автозавантаження списків
+        if not self.rl_root_var.get():
+            self.auto_detect_rl()
+        elif not self.maps_folder.get():
+            self._update_maps_folder()
+            
+        self._refresh_all() # Відновлюємо завантаження локальних карт при старті
+            
         self.after(1000, lambda: self.load_bakkes_maps(reset=True))
         self.after(3000, self.check_for_updates)
 
@@ -890,6 +967,7 @@ class MapLoaderApp(tk.Tk):
             'rl_root':           self.rl_root_var.get(),
             'maps_folder':       self.maps_folder.get(),
             'auto_update':       self.auto_update_var.get(),
+            'always_on_top':     self.always_on_top_var.get(), # <-- ДОДАТИ ЦЕЙ РЯДОК
         })
         save_config(self._cfg)
 
@@ -950,7 +1028,6 @@ class MapLoaderApp(tk.Tk):
         self.notebook.add(df, text=self._t('download_maps_tab'))
         self._build_download_tab(df)
 
-        # ── НОВЕ: Вкладка "Інструкція" ──
         hf = ttk.Frame(self.notebook)
         self.notebook.add(hf, text=self._t('help_tab'))
         self._build_help_tab(hf)
@@ -971,25 +1048,18 @@ class MapLoaderApp(tk.Tk):
             except Exception:
                 pass
 
-        ttk.Label(bar, text=self._t('language')).pack(side='left')
-        lang_cb = ttk.Combobox(bar, values=list(LANGUAGE_NAMES.values()),
-                               textvariable=self.language_opt, state='readonly', width=12)
-        lang_cb.pack(side='left', padx=4)
-        lang_cb.bind('<<ComboboxSelected>>', self._on_lang_change)
+        # ── Кнопка Налаштування ──
+        btn_settings = ttk.Button(bar, text="🔧 " + self._t('settings'), command=self._open_settings)
+        btn_settings.pack(side='right', padx=4)
+        Tooltip(btn_settings, self._t('tt_settings'))  # <--- Додано Tooltip
 
         if HAS_SV_TTK:
-            icon = '☀️' if self.theme_mode.get() == 'dark' else '🌙'
+            icon = '🔆' if self.theme_mode.get() == 'dark' else '🌙'
             self._theme_btn = ttk.Button(bar, text=icon, width=3, command=self._toggle_theme)
-            self._theme_btn.pack(side='left', padx=(5, 20))
+            self._theme_btn.pack(side='right', padx=(5, 5))
+            Tooltip(self._theme_btn, self._t('tt_theme')) # <--- Додано Tooltip
 
-        ttk.Label(bar, text=self._t('close_behavior')).pack(side='left', padx=(0, 4))
-        self._close_lbl = tk.StringVar(value=self._t(self.close_code.get()))
-        close_cb = ttk.Combobox(bar, values=[self._t('restore_and_exit'), self._t('minimize_to_tray')],
-                                textvariable=self._close_lbl, state='readonly', width=20)
-        close_cb.pack(side='left', padx=4)
-        close_cb.bind('<<ComboboxSelected>>', self._on_close_action_change)
-
-        # ── НОВЕ: Галочка автооновлення на верхній панелі ──
+        # Галочка автооновлення на верхній панелі
         auto_update_text = "Автооновлення" if self.lang == 'uk' else "Auto-update"
         ttk.Checkbutton(
             bar, 
@@ -998,12 +1068,103 @@ class MapLoaderApp(tk.Tk):
             command=self._save_cfg
         ).pack(side='left', padx=(15, 4))
 
-        # ── НОВЕ: Кнопка ручної перевірки оновлень ──
+        # Кнопка ручної перевірки оновлень
         ttk.Button(bar, text=self._t('check_update'), command=self.manual_check_for_updates).pack(side='left', padx=4)
 
-        # Кнопка запуску гри (праворуч)
-        ttk.Button(bar, text=self._t('launch_game'),
-                   command=self._launch_rl).pack(side='right', padx=4)
+        # ── Кнопка запуску гри (найправіша) ──
+        btn_launch = ttk.Button(bar, text=self._t('launch_game'), command=self._launch_rl)
+        btn_launch.pack(side='right', padx=4)
+        Tooltip(btn_launch, self._t('tt_launch')) # <--- Додано Tooltip
+
+
+    def _open_settings(self):
+        win = tk.Toplevel(self)
+        win.title(self._t('settings'))
+        win.geometry('650x350') # Збільшено висоту вікна
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+
+        temp_lang = tk.StringVar(value=self.language_opt.get())
+        temp_close = tk.StringVar(value=self._close_lbl.get())
+        temp_root = tk.StringVar(value=self.rl_root_var.get())
+        temp_maps = tk.StringVar(value=self.maps_folder.get())
+        temp_topmost = tk.BooleanVar(value=self.always_on_top_var.get())
+
+        f = ttk.Frame(win, padding=15)
+        f.pack(fill='both', expand=True)
+
+        # Мова
+        ttk.Label(f, text=self._t('language')).grid(row=0, column=0, sticky='w', pady=8)
+        lang_cb = ttk.Combobox(f, values=list(LANGUAGE_NAMES.values()), textvariable=temp_lang, state='readonly', width=25)
+        lang_cb.grid(row=0, column=1, sticky='w', pady=8, padx=10)
+
+        # Поведінка при закритті
+        ttk.Label(f, text=self._t('close_behavior')).grid(row=1, column=0, sticky='w', pady=8)
+        close_cb = ttk.Combobox(f, values=[self._t('restore_and_exit'), self._t('minimize_to_tray')], textvariable=temp_close, state='readonly', width=25)
+        close_cb.grid(row=1, column=1, sticky='w', pady=8, padx=10)
+
+        # Корінь гри
+        ttk.Label(f, text=self._t('rl_root')).grid(row=2, column=0, sticky='w', pady=8)
+        rf = ttk.Frame(f)
+        rf.grid(row=2, column=1, sticky='w', pady=8, padx=10)
+        ttk.Entry(rf, textvariable=temp_root, width=40).pack(side='left')
+        
+        def browse_rl():
+            p = filedialog.askdirectory()
+            if p: temp_root.set(p)
+            
+        def auto_detect():
+            root = find_rocket_league_root()
+            if root: 
+                temp_root.set(root)
+                mf_found = find_maps_folder(root)
+                if mf_found: temp_maps.set(mf_found)
+                
+        ttk.Button(rf, text=self._t('browse'), command=browse_rl).pack(side='left', padx=4)
+        ttk.Button(rf, text=self._t('auto_detect'), command=auto_detect).pack(side='left', padx=4)
+
+        # Папка з картами в грі
+        ttk.Label(f, text=self._t('maps_folder')).grid(row=3, column=0, sticky='w', pady=8)
+        mf = ttk.Frame(f)
+        mf.grid(row=3, column=1, sticky='w', pady=8, padx=10)
+        ttk.Entry(mf, textvariable=temp_maps, width=40).pack(side='left')
+        
+        def refresh_mf():
+            mf_found = find_maps_folder(temp_root.get().strip())
+            if mf_found: temp_maps.set(mf_found)
+            
+        ttk.Button(mf, text=self._t('refresh'), command=refresh_mf).pack(side='left', padx=4)
+
+        ttk.Checkbutton(f, text=self._t('always_on_top'), variable=temp_topmost).grid(row=4, column=0, columnspan=2, sticky='w', pady=(8, 0))
+
+        bf = ttk.Frame(win, padding=10)
+        bf.pack(side='bottom', fill='x')
+
+        def save():
+            lang_changed = (self.language_opt.get() != temp_lang.get())
+            
+            self.language_opt.set(temp_lang.get())
+            self._close_lbl.set(temp_close.get())
+            self.rl_root_var.set(temp_root.get())
+            self.maps_folder.set(temp_maps.get())
+
+            self.always_on_top_var.set(temp_topmost.get())
+            self.attributes('-topmost', self.always_on_top_var.get())
+            
+            self._on_close_action_change()
+            self._save_cfg()
+            self._refresh_standard()
+            
+            win.destroy()
+            
+            if lang_changed:
+                self._on_lang_change()
+
+        # Додано width=15 та збільшено відступи, щоб текст 100% влазив
+        ttk.Button(bf, text=self._t('save'), width=15, command=save, style='Accent.TButton').pack(side='right', padx=5, pady=(0, 5))
+        ttk.Button(bf, text=self._t('cancel'), width=15, command=win.destroy).pack(side='right', padx=5, pady=(0, 5))
+
 
     def _build_bottom_logo(self):
         bottom_frame = ttk.Frame(self)
@@ -1021,7 +1182,6 @@ class MapLoaderApp(tk.Tk):
         
         ttk.Label(bottom_frame, text="made by ItsAndreww", font=('Arial', 8, 'italic'), foreground='gray').pack(side='left')
 
-        # Залишаємо тільки версію справа
         ttk.Label(
             bottom_frame, 
             text=f"v{VERSION}", 
@@ -1038,18 +1198,13 @@ class MapLoaderApp(tk.Tk):
         ttk.Label(sel, textvariable=self.sel_custom, foreground='#0078d4', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
         ttk.Label(sel, text=self._t('selected_standard')).pack(side='left', padx=(20, 0))
         ttk.Label(sel, textvariable=self.sel_standard, foreground='#d83b01', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
-        def row(label_key, var, browse_cmd, extra_btn=None):
-            r = ttk.Frame(f); r.pack(fill='x', pady=2)
-            ttk.Label(r, text=self._t(label_key), width=25).pack(side='left')
-            e = ttk.Entry(r, textvariable=var, width=50); e.pack(side='left', padx=8)
-            ttk.Button(r, text=self._t('browse'), command=browse_cmd).pack(side='left')
-            if extra_btn:
-                ttk.Button(r, **extra_btn).pack(side='left', padx=4)
-        row('custom_maps_folder', self.custom_folder, self._browse_custom)
-        row('rl_root',            self.rl_root_var,   self._browse_rl,
-            extra_btn={'text': self._t('auto_detect'), 'command': self.auto_detect_rl})
-        row('maps_folder',        self.maps_folder,   self._update_maps_folder,
-            extra_btn={'text': self._t('refresh'), 'command': self._update_maps_folder})
+        
+        r = ttk.Frame(f)
+        r.pack(fill='x', pady=2)
+        ttk.Label(r, text=self._t('custom_maps_folder'), width=25).pack(side='left')
+        ttk.Entry(r, textvariable=self.custom_folder, width=50).pack(side='left', padx=8)
+        ttk.Button(r, text=self._t('browse'), command=self._browse_custom).pack(side='left')
+
         cols = ttk.Frame(f); cols.pack(fill='both', expand=True, pady=8)
         def col(title_key):
             lf = ttk.LabelFrame(cols, text=self._t(title_key))
@@ -1059,10 +1214,14 @@ class MapLoaderApp(tk.Tk):
         _, self._replace_frame     = col('replacement_history')
         _, self._standard_frame    = col('standard_maps')
         btns = ttk.Frame(f); btns.pack(fill='x', pady=8)
+        btns = ttk.Frame(f); btns.pack(fill='x', pady=8)
         rb = ttk.Button(btns, text=self._t('refresh_lists'), command=self._refresh_all)
         rb.pack(side='left', padx=10)
+        
         rpb = ttk.Button(btns, text=self._t('replace_map'), command=self._do_replace, style='Accent.TButton')
         rpb.pack(side='right', padx=10)
+        Tooltip(rpb, self._t('tt_replace')) # <--- Додано Tooltip
+        
         ttk.Label(f, textvariable=self.status_var, foreground='blue').pack(anchor='w')
 
     def _build_download_tab(self, parent):
@@ -1091,22 +1250,16 @@ class MapLoaderApp(tk.Tk):
         f = ttk.Frame(parent, padding=20)
         f.pack(fill='both', expand=True)
         
-        # Створюємо текстове поле, яке підтримує скролінг та форматування
         txt = tk.Text(f, wrap='word', font=('Arial', 11), relief='flat', padx=10, pady=10)
         txt.pack(side='left', fill='both', expand=True)
         
-        # Додаємо скролбар
         sb = ttk.Scrollbar(f, orient='vertical', command=txt.yview)
         sb.pack(side='right', fill='y')
         txt.configure(yscrollcommand=sb.set)
         
-        # Вставляємо текст інструкції
         txt.insert('1.0', self._t('help_text'))
-        
-        # Робимо текст доступним лише для читання
         txt.configure(state='disabled')
         
-        # Налаштовуємо кольори залежно від теми (темна/світла)
         if HAS_SV_TTK and sv_ttk.get_theme() == 'dark':
             txt.configure(bg='#1e1e1e', fg='#ffffff', insertbackground='#ffffff')
         else:
@@ -1125,7 +1278,7 @@ class MapLoaderApp(tk.Tk):
         self.theme_mode.set(new)
         if HAS_SV_TTK: sv_ttk.set_theme(new)
         self._apply_win_style()
-        self._theme_btn.config(text='☀️' if new == 'dark' else '🌙')
+        self._theme_btn.config(text='🔆' if new == 'dark' else '🌙')
         self._save_cfg()
 
     def _on_close_action_change(self, _=None):
@@ -1214,27 +1367,125 @@ class MapLoaderApp(tk.Tk):
             self.maps_folder.set(''); self.status_var.set(self._t('maps_folder_not_found'))
 
     def _refresh_all(self):
-        self._refresh_custom(); self._refresh_standard(); self._render_replacements()
+        self._refresh_custom()
+        self._refresh_standard()
+        self._render_replacements()
+        
+        # Перевіряємо, чи вказані папки. Якщо так - міняємо дефолтний статус
+        if self.custom_folder.get().strip() and self.rl_root_var.get().strip():
+            if self.status_var.get() == self._t('status_default'):
+                self.status_var.set(self._t('status_ready'))
+        else:
+            self.status_var.set(self._t('status_default'))
 
     def _refresh_custom(self):
         for w in self._custom_frame.winfo_children(): w.destroy()
-        for m in list_custom_maps(self.custom_folder.get()):
-            self._custom_tile(self._custom_frame, m)
+        
+        folder = self.custom_folder.get().strip()
+        if not folder or not os.path.isdir(folder):
+            return
+            
+        maps = list_custom_maps(folder)
+        
+        # Зчитуємо базу даних з метаданими карт (назви, прев'ю)
+        info_db = {}
+        info_file = os.path.join(folder, 'map_info.json')
+        if os.path.isfile(info_file):
+            try:
+                with open(info_file, 'r', encoding='utf-8') as f:
+                    info_db = json.load(f)
+            except Exception:
+                pass
+
+        for m in maps:
+            self._custom_tile(self._custom_frame, m, info_db.get(m, {}))
 
     def _refresh_standard(self):
         for w in self._standard_frame.winfo_children(): w.destroy()
         for m in list_standard_maps(self.maps_folder.get()):
             self._std_tile(self._standard_frame, m)
 
-    def _custom_tile(self, parent, name):
-        row = ttk.Frame(parent)
-        row.pack(fill='x', pady=1, padx=2)
-        btn_style = 'Accent.TButton' if self.sel_custom.get() == name else 'TButton'
-        btn = ttk.Button(row, text=name, width=28, style=btn_style,
-                         command=lambda n=name: self._select_map(n, True))
-        btn.pack(side='left', fill='x', expand=True, padx=(0, 2))
-        del_btn = ttk.Button(row, text='✕', width=3, command=lambda: self._delete_custom(name))
+    def _custom_tile(self, parent, filename, info):
+        tile = ttk.Frame(parent, relief='raised', borderwidth=1)
+        tile.pack(fill='x', pady=3, padx=3)
+
+        # ── Зображення ──
+        img_lbl = ttk.Label(tile)
+        img_lbl.pack(side='left', padx=5, pady=5)
+        img_lbl.size = (144, 81)  # Зберігаємо розмір для подальшого використання при відсутності прев'ю
+
+        # ── Блок інформації ──
+        info_frame = ttk.Frame(tile)
+        info_frame.pack(side='left', fill='both', expand=True, pady=5, padx=5)
+
+        title = info.get('title')
+        if not title:
+            # Якщо метаданих немає, робимо чисту назву з файлу (без .upk і підкреслень)
+            title = os.path.splitext(filename)[0].replace('_', ' ')
+
+        title_lbl = ttk.Label(info_frame, text=title, font=('Arial', 10, 'bold'), wraplength=200, justify='left')
+        title_lbl.pack(anchor='nw')
+
+        author = info.get('author', '')
+        if author:
+            ttk.Label(info_frame, text=author, font=('Arial', 8), foreground='gray').pack(anchor='nw', pady=(2, 0))
+
+        # ── Кнопки (Обрати / Видалити) ──
+        bot_frame = ttk.Frame(info_frame)
+        bot_frame.pack(side='bottom', fill='x', expand=True)
+
+        is_selected = (self.sel_custom.get() == filename)
+        btn_style = 'Accent.TButton' if is_selected else 'TButton'
+        
+        if is_selected:
+            sel_text = '✓ Обрано' if self.lang == 'uk' else '✓ Selected'
+        else:
+            sel_text = 'Обрати' if self.lang == 'uk' else 'Select'
+            
+        sel_btn = ttk.Button(bot_frame, text=sel_text, style=btn_style,
+                             command=lambda n=filename: self._select_map(n, True))
+        sel_btn.pack(side='left')
+
+        del_btn = ttk.Button(bot_frame, text='✕', width=3, command=lambda: self._delete_custom(filename))
         del_btn.pack(side='right')
+
+        # ── Асинхронне завантаження картинки ──
+        def _fetch_img():
+            url = info.get('preview_url')
+            img_width, img_height = 144, 81  
+            cache_key = f"{url}_{img_width}x{img_height}" # Додали розмір в ключ
+            
+            if url and cache_key in IMG_CACHE:
+                photo = IMG_CACHE[cache_key]
+                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                return
+
+            photo = None
+            if url:
+                try:
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=3) as r:
+                        data = r.read()
+                    import io
+                    img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
+                    photo = ImageTk.PhotoImage(img)
+                    IMG_CACHE[cache_key] = photo # Зберігаємо за новим ключем
+                except Exception:
+                    pass
+
+            if photo:
+                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+            else:
+                try:
+                    img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
+                    draw = ImageDraw.Draw(img)
+                    draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
+                    photo = ImageTk.PhotoImage(img)
+                    self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                except Exception:
+                    pass
+
+        IMG_POOL.submit(_fetch_img)
 
     def _std_tile(self, parent, name):
         btn_style = 'Accent.TButton' if self.sel_standard.get() == name else 'TButton'
@@ -1366,30 +1617,82 @@ class MapLoaderApp(tk.Tk):
             self._build_dl_tile(tile, m)
 
     def _build_dl_tile(self, tile, m):
-        img_lbl = ttk.Label(tile)
-        img_lbl.pack(side='top', padx=5, pady=5)
-        info = ttk.Frame(tile); info.pack(side='top', fill='both', expand=True, padx=5, pady=5)
-        ttk.Label(info, text=m['title'], font=('Arial', 10, 'bold'),
-                  wraplength=220, justify='center').pack(anchor='center', pady=(0, 4))
-        if m.get('rating'):
-            ttk.Label(info, text=m['rating'], foreground='#b8860b',
-                      font=('Arial', 9, 'bold')).pack(anchor='center', pady=(0, 4))
+        container = ttk.Frame(tile)
+        container.pack(fill='both', expand=True)
+
+        img_lbl = ttk.Label(container)
+        img_lbl.pack(side='top', fill='x')
+
+        info_frame = ttk.Frame(container)
+        info_frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+        title_lbl = ttk.Label(info_frame, text=m['title'], font=('Arial', 10, 'bold', 'italic'), 
+                              wraplength=220, justify='left')
+        title_lbl.pack(side='top', anchor='w', fill='x')
+
+        author_text = m.get('author', '')
+        if author_text:
+            ttk.Label(info_frame, text=author_text, foreground='gray', 
+                      font=('Arial', 9)).pack(side='top', anchor='w', fill='x', pady=(2, 0))
+
+        bot_frame = ttk.Frame(info_frame)
+        bot_frame.pack(side='bottom', fill='x', expand=True, pady=(8, 0))
+
+        rating_text = m.get('rating', '')
+        if rating_text:
+            ttk.Label(bot_frame, text=rating_text, foreground='#b8860b', 
+                      font=('Arial', 9, 'bold')).pack(side='left', anchor='sw')
+
         folder     = self.custom_folder.get().strip()
         safe_title = sanitize_filename(m['title'])
         downloaded = folder and any(
             os.path.isfile(os.path.join(folder, safe_title + ext))
             for ext in CUSTOM_MAP_EXTENSIONS
         )
-        btn_text = ('✓ Завантажено' if CURRENT_LANGUAGE == 'uk' else '✓ Downloaded') \
-                   if downloaded else self._t('download')
-        ttk.Button(info, text=btn_text,
-                   command=lambda mi=m: self._download_map(mi)).pack(anchor='center', side='bottom', pady=4)
+        
+        btn_text = ('✓ Завантажено' if self.lang == 'uk' else '✓ Downloaded') if downloaded else self._t('download')
+        btn_style = 'TButton' if downloaded else 'Accent.TButton'
+
+        ttk.Button(bot_frame, text=btn_text, style=btn_style,
+                   command=lambda mi=m: self._download_map(mi)).pack(side='right', anchor='se')
+
         def _fetch_img():
-            photo = download_image(m.get('preview_url'))
+            url = m.get('preview_url')
+            img_width, img_height = 288, 162  
+            cache_key = f"{url}_{img_width}x{img_height}" # Додали розмір в ключ
+            
+            if url and cache_key in IMG_CACHE:
+                photo = IMG_CACHE[cache_key]
+                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                return
+
+            photo = None
+            if url:
+                try:
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=5) as r:
+                        data = r.read()
+                    import io
+                    img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
+                    photo = ImageTk.PhotoImage(img)
+                    IMG_CACHE[cache_key] = photo # Зберігаємо за новим ключем
+                except Exception:
+                    pass
+
             if photo:
-                self.after(0, lambda: (setattr(img_lbl, 'image', photo),
-                                       img_lbl.config(image=photo)))
-        threading.Thread(target=_fetch_img, daemon=True).start()
+                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+            else:
+                try:
+                    img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
+                    draw = ImageDraw.Draw(img)
+                    draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
+                    photo = ImageTk.PhotoImage(img)
+                    self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                except Exception:
+                    pass
+
+        IMG_POOL.submit(_fetch_img)
+
 
     def _download_map(self, m):
         folder = self.custom_folder.get().strip()
@@ -1401,6 +1704,8 @@ class MapLoaderApp(tk.Tk):
             try:
                 raw, fname = download_map_natively(m)
                 is_zip = fname.lower().endswith('.zip') or raw[:2] == b'PK'
+                final_filename = None
+                
                 if is_zip:
                     self.after(0, lambda: self.dl_status_var.set(self._t('extracting_zip')))
                     with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as tf:
@@ -1411,13 +1716,34 @@ class MapLoaderApp(tk.Tk):
                             self.after(0, self._hide_progress)
                             self.after(0, lambda: messagebox.showerror(
                                 self._t('error_title'), self._t('no_map_in_zip'))); return
+                        final_filename = name
                     finally:
                         os.unlink(tfp)
                 else:
                     ext  = os.path.splitext(fname)[1].lower()
                     if ext not in CUSTOM_MAP_EXTENSIONS: ext = '.upk'
-                    dest = normalize_path(os.path.join(folder, sanitize_filename(title) + ext))
+                    final_filename = sanitize_filename(title) + ext
+                    dest = normalize_path(os.path.join(folder, final_filename))
                     with open(dest, 'wb') as fh: fh.write(raw)
+
+                # ЗБЕРЕЖЕННЯ ІНФОРМАЦІЇ ПРО КАРТУ (ДЛЯ ПРЕВ'Ю В ЛОКАЛЬНИХ КАРТАХ)
+                if final_filename:
+                    try:
+                        info_file = os.path.join(folder, 'map_info.json')
+                        info_db = {}
+                        if os.path.isfile(info_file):
+                            with open(info_file, 'r', encoding='utf-8') as f:
+                                info_db = json.load(f)
+                        info_db[final_filename] = {
+                            'title': title,
+                            'author': m.get('author', ''),
+                            'preview_url': m.get('preview_url', '')
+                        }
+                        with open(info_file, 'w', encoding='utf-8') as f:
+                            json.dump(info_db, f, ensure_ascii=False, indent=2)
+                    except Exception as e:
+                        print("Failed to save map info:", e)
+
                 self.after(0, self._hide_progress)
                 self.after(0, lambda: messagebox.showinfo(
                     self._t('info_title'), self._t('download_complete', title=title)))
@@ -1434,13 +1760,10 @@ class MapLoaderApp(tk.Tk):
     # ════════════════════════════════════════════════════════════════
 
     def check_for_updates(self):
-        """Перевіряє наявність оновлень на GitHub у фоновому потоці."""
-        # ДОДАНО: Якщо галочка автооновлення знята - не перевіряємо
         if not self.auto_update_var.get():
             return
 
         def _task():
-            # Використовуємо вашу константу GITHUB_REPO
             api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             try:
                 req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
@@ -1467,7 +1790,6 @@ class MapLoaderApp(tk.Tk):
         threading.Thread(target=_task, daemon=True).start()
 
     def manual_check_for_updates(self):
-        """Ручна перевірка оновлень (через кнопку)."""
         self._show_progress(self._t('check_update') + "...")
         
         def _task():
@@ -1524,7 +1846,6 @@ class MapLoaderApp(tk.Tk):
             
             try:
                 if getattr(sys, 'frozen', False):
-                    # 1. Завантажуємо новий файл у .new (це абсолютно безпечно, бо файл не запущений)
                     req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
                     with urllib.request.urlopen(req, timeout=60) as response, open(new_exe_path, 'wb') as out_file:
                         shutil.copyfileobj(response, out_file)
@@ -1532,31 +1853,26 @@ class MapLoaderApp(tk.Tk):
                     self.after(0, self._hide_progress)
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення завантажено! Програма зараз перезапуститься."))
 
-                    # 2. Створюємо BAT-файл для підміни файлів
                     import tempfile
                     bat_path = os.path.join(tempfile.gettempdir(), "rl_updater.bat")
                     with open(bat_path, "w", encoding="utf-8") as f:
                         f.write('@echo off\n')
                         f.write('chcp 65001 > nul\n')
-                        f.write('ping 127.0.0.1 -n 3 > nul\n') # Даємо 2 секунди старій програмі повністю закритись
+                        f.write('ping 127.0.0.1 -n 3 > nul\n')
                         f.write(f'if exist "{old_exe_path}" del "{old_exe_path}" > nul 2>&1\n')
                         f.write(f'rename "{exe_path}" "{os.path.basename(old_exe_path)}"\n')
                         f.write(f'rename "{new_exe_path}" "{os.path.basename(exe_path)}"\n')
                         f.write(f'start "" "{exe_path}"\n')
                         f.write('del "%~f0"\n')
 
-                    # 3. ТОТАЛЬНА чистка середовища з-під Python (надійніше ніж BAT-файл)
                     clean_env = {}
                     for k, v in os.environ.items():
                         k_up = k.upper()
-                        # Жорстко вирізаємо всі можливі зачіпки PyInstaller та Tkinter
                         if 'MEI' not in k_up and 'TCL_' not in k_up and 'TK_' not in k_up and '_PYI' not in k_up:
                             clean_env[k] = v
 
-                    # 4. Запускаємо BAT-файл ізольовано з ідеально чистим середовищем (без чорного вікна консолі)
                     subprocess.Popen(['cmd.exe', '/c', bat_path], env=clean_env, creationflags=0x08000000)
 
-                    # 5. М'яко закриваємо поточну програму
                     self.after(0, self.destroy)
                 else:
                     self.after(0, self._hide_progress)
@@ -1565,7 +1881,6 @@ class MapLoaderApp(tk.Tk):
             except Exception as e:
                 self.after(0, self._hide_progress)
                 self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Не вдалося оновити: {err}"))
-                # Якщо сталася помилка, прибираємо недокачаний файл
                 if os.path.exists(new_exe_path):
                     try: os.remove(new_exe_path)
                     except: pass
