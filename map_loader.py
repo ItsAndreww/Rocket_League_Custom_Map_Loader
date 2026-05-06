@@ -1101,7 +1101,7 @@ class MapLoaderApp(tk.Tk):
         bar = ttk.Frame(self, padding=6)
         bar.pack(fill='x')
 
-        logo_path = resource_path('logo.png')
+        logo_path = resource_path('logo.ico')
         if os.path.isfile(logo_path):
             try:
                 img = Image.open(logo_path)
@@ -1235,7 +1235,7 @@ class MapLoaderApp(tk.Tk):
         bottom_frame = ttk.Frame(self)
         bottom_frame.pack(side='bottom', fill='x', padx=15, pady=(0, 5))
         
-        logo_path = resource_path('logo.png')
+        logo_path = resource_path('logo.ico')
         if os.path.isfile(logo_path):
             try:
                 img = Image.open(logo_path)
@@ -1365,7 +1365,7 @@ class MapLoaderApp(tk.Tk):
             messagebox.showerror(self._t('error_title'), self._t('launch_failed', error=e))
 
     def _tray_icon_image(self):
-        logo_path = resource_path('logo.png')
+        logo_path = resource_path('logo.ico')
         if os.path.isfile(logo_path):
             try:
                 return Image.open(logo_path).convert('RGBA').resize((64, 64), Image.Resampling.LANCZOS)
