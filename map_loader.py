@@ -1,13 +1,26 @@
-VERSION = "1.1.0"  # Поточна версія
+VERSION = "1.2.0"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
 
 import os
 import sys
-import concurrent.futures
+import logging
+import aiohttp
+import threading 
+import asyncio
+import aiohttp
+from logging.handlers import RotatingFileHandler
+from urllib.error import URLError, HTTPError
+from pathlib import Path
 
 
 IMG_CACHE = {}
-IMG_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+ASYNC_LOOP = asyncio.new_event_loop()
+
+def _start_async_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+threading.Thread(target=_start_async_loop, args=(ASYNC_LOOP,), daemon=True).start()
 
 # ── PyInstaller / --noconsole fixes ───────────────────────────
 if sys.stdout is None:
@@ -49,21 +62,32 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+def setup_logger():
+    # Файл логів буде зберігатися там само, де і exe / скрипт
+    log_path = Path(_data_dir()) / 'rlcml.log'
+    
+    logging.basicConfig(
+        level=logging.INFO, # Записуємо INFO, WARNING, ERROR та CRITICAL
+        format='%(asctime)s - %(levelname)s - [%(funcName)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[
+            RotatingFileHandler(log_path, maxBytes=2*1024*1024, backupCount=2, encoding='utf-8')
+        ]
+    )
+    logging.info(f"=== Rocket League Custom Map Loader v{VERSION} Started ===")
+
 import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import json
 import urllib.request
-import urllib.parse
 import shlex
 from bs4 import BeautifulSoup
 import threading
-import io
 import zipfile
 import tempfile
 import time
 import string
-import logging
 
 # ── Selenium & Webdriver Manager ──
 os.environ['WDM_LOG']       = '0'
@@ -311,15 +335,20 @@ def tr(key, **kwargs):
 # ════════════════════════════════════════════════════════════════
 # CONFIG
 # ════════════════════════════════════════════════════════════════
+import json
 
 def load_config():
-    path = os.path.join(_data_dir(), 'config.json')
-    if os.path.isfile(path):
+    path = Path(_data_dir()) / 'config.json'
+    if path.is_file():
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except json.JSONDecodeError:
+            logging.warning("config.json пошкоджено. Завантажено дефолтні налаштування.")
+        except PermissionError:
+            logging.error("Немає прав доступу до config.json.")
+        except OSError as e:
+            logging.error(f"Системна помилка при читанні конфігурації: {e}", exc_info=True)
     return {}
 
 def save_config(cfg):
@@ -505,34 +534,53 @@ def _wait_cf(driver, timeout: int = 15):
 
 def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
     import re as _re
+    import urllib.request
+    import urllib.parse
+    from bs4 import BeautifulSoup
+
     BASE = 'https://bakkesplugins.com'
-    driver = None
+    url = f"{BASE}/maps"
+    params = []
+    
+    if search_query:
+        params.append(f"search={urllib.parse.quote(search_query)}")
+    if page > 1:
+        params.append(f"page={page}")
+    if params:
+        url += "?" + "&".join(params)
+
+    html = ""
+    
+    # ── 1. СПРОБА ШВИДКОГО HTTP-ЗАПИТУ (Обхід Selenium) ──
     try:
-        driver = _get_driver()
-        url = f"{BASE}/maps"
-        params = []
-        if search_query:
-            params.append(f"search={urllib.parse.quote(search_query)}")
-        if page > 1:
-            params.append(f"page={page}")
-        if params:
-            url += "?" + "&".join(params)
-        driver.get(url)
-        _wait_cf(driver)
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/maps/']"))
-            )
-        except Exception:
-            pass
-        html = driver.page_source
-    except Exception as e:
-        raise RuntimeError(str(e)) from e
-    finally:
-        if driver:
-            try: driver.quit()
-            except Exception: pass
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9'
+        })
+        with urllib.request.urlopen(req, timeout=5) as response:
+            html = response.read().decode('utf-8')
             
+    except Exception as e:
+        # ── 2. ФОЛБЕК НА SELENIUM (Якщо Cloudflare заблокував) ──
+        # Якщо спіймали 403 або іншу помилку, падаємо на наш оптимізований Singleton-драйвер
+        try:
+            driver = _get_driver() # Викликаємо драйвер з Кроку 1
+            driver.get(url)
+            _wait_cf(driver)
+            
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/maps/']"))
+                )
+            except Exception:
+                pass
+                
+            html = driver.page_source
+        except Exception as driver_e:
+            raise RuntimeError(f"Помилка завантаження сторінки: {driver_e}") from driver_e
+
+    # ── 3. ПАРСИНГ HTML (Твоя логіка залишається без змін) ──
     soup = BeautifulSoup(html, 'html.parser')
     maps = []
     seen = set()
@@ -564,20 +612,16 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             s = img.get('src') or img.get('data-src', '')
             if s and s.startswith('http'): preview = s
 
-        # ── РОЗУМНИЙ ПОШУК АВТОРА (Ізольований по картці) ──
+        # Розумний пошук автора
         author = ""
-        
-        # 1. Спочатку шукаємо прямо всередині тега <a>
         author_span = a.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
         
-        # 2. Якщо немає, акуратно піднімаємось вгору (але не виходимо за межі поточної картки)
         if not author_span:
             parent = a.parent
-            for _ in range(4): # Шукаємо до 4 рівнів вгору
+            for _ in range(4): 
                 if not parent or parent.name == 'body':
                     break
-                    
-                # Перевіряємо, чи ми не вийшли в загальний "грід" з усіма мапами
+            
                 links = parent.find_all('a', href=_re.compile(r'^/maps/\d+$'))
                 mids = set()
                 for l in links:
@@ -585,7 +629,6 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
                     if m: mids.add(m.group(1))
                     
                 if len(mids) > 1:
-                    # Якщо в цьому блоці є посилання на ІНШІ мапи — ми вийшли занадто високо! Зупиняємось.
                     break
                     
                 author_span = parent.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
@@ -779,60 +822,81 @@ def download_image(url: str):
     if not url:
         return None
     try:
+        # Тут використовуємо url, а не api_url
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = r.read()
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = response.read()
+            
+        import io
         img = Image.open(io.BytesIO(data)).resize((160, 90), Image.Resampling.LANCZOS)
         return ImageTk.PhotoImage(img)
-    except Exception:
-        return None
+        
+    except HTTPError as e:
+        logging.warning(f"Сервер відхилив запит зображення. Код: {e.code} для URL: {url}")
+    except URLError as e:
+        logging.error(f"Помилка мережі при завантаженні зображення: {e.reason}")
+    except Exception as e:
+        logging.error(f"Помилка обробки зображення: {e}", exc_info=True)
+        
+    return None
 
 
 def find_rocket_league_root():
-    pf   = os.environ.get('PROGRAMFILES',      r'C:\Program Files')
-    pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
+    pf = Path(os.environ.get('PROGRAMFILES', r'C:\Program Files'))
+    pf86 = Path(os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)'))
+    
     common = [
-        os.path.join(pf86, 'Steam', 'steamapps', 'common', 'rocketleague'),
-        os.path.join(pf,   'Steam', 'steamapps', 'common', 'rocketleague'),
-        os.path.join(pf,   'Epic Games', 'rocketleague'),
-        os.path.join(pf86, 'Epic Games', 'rocketleague'),
+        pf86 / 'Steam' / 'steamapps' / 'common' / 'rocketleague',
+        pf / 'Steam' / 'steamapps' / 'common' / 'rocketleague',
+        pf / 'Epic Games' / 'rocketleague',
+        pf86 / 'Epic Games' / 'rocketleague',
     ]
-    def _valid(p):
-        return os.path.isdir(p) and (
-            os.path.isdir(os.path.join(p, 'TAGame')) or
-            os.path.isdir(os.path.join(p, 'Binaries'))
-        )
+    
+    def _valid(p: Path):
+        return p.is_dir() and ((p / 'TAGame').is_dir() or (p / 'Binaries').is_dir())
+    
     for p in common:
-        if _valid(p): return p
-    drives = [f'{d}:' for d in string.ascii_uppercase if os.path.exists(f'{d}:')]
+        if _valid(p): return str(p)
+        
+    # Пошук по всіх дисках
+    drives = [Path(f'{d}:\\') for d in string.ascii_uppercase if Path(f'{d}:\\').exists()]
     suffixes = [
-        r'SteamLibrary\steamapps\common\rocketleague',
-        r'Steam\steamapps\common\rocketleague',
-        r'Epic Games\rocketleague',
-        r'Games\rocketleague',
+        Path('SteamLibrary/steamapps/common/rocketleague'),
+        Path('Steam/steamapps/common/rocketleague'),
+        Path('Epic Games/rocketleague'),
+        Path('Games/rocketleague'),
     ]
+    
     for drv in drives:
         for sfx in suffixes:
-            p = os.path.join(drv + '\\', sfx)
-            if _valid(p): return p
+            p = drv / sfx
+            if _valid(p): return str(p)
+            
     return None
 
 
 def find_maps_folder(rl_root: str):
     if not rl_root: return None
+    root = Path(rl_root)
+    
     for sfx in CUSTOM_MAP_FOLDER_NAMES:
-        p = os.path.join(rl_root, sfx)
-        if os.path.isdir(p): return p
+        # pathlib автоматично розбере подвійні бекслеші з твого списку CUSTOM_MAP_FOLDER_NAMES
+        p = root / sfx
+        if p.is_dir(): return str(p)
+        
     return None
 
 
 def find_rocket_league_executable(rl_root: str):
     if not rl_root: return None
-    for rel in ('Binaries\\Win64\\RocketLeague.exe',
-                'Binaries\\Win64\\RocketLeague-Win64-Shipping.exe',
+    root = Path(rl_root)
+    
+    for rel in ('Binaries/Win64/RocketLeague.exe',
+                'Binaries/Win64/RocketLeague-Win64-Shipping.exe',
                 'RocketLeague.exe'):
-        p = os.path.join(rl_root, rel)
-        if os.path.isfile(p): return p
+        p = root / rel
+        if p.is_file(): return str(p)
+        
     return None
 
 
@@ -929,6 +993,7 @@ class MapLoaderApp(tk.Tk):
         self.dl_status_var = tk.StringVar()
         self.replacements  = []
         self.bakkes_maps   = []
+        self.map_info_db   = {}
         self.current_page  = 1
         self.search_var    = tk.StringVar()
 
@@ -1366,7 +1431,30 @@ class MapLoaderApp(tk.Tk):
         else:
             self.maps_folder.set(''); self.status_var.set(self._t('maps_folder_not_found'))
 
+    def _load_map_info(self):
+        folder = self.custom_folder.get().strip()
+        self.map_info_db = {}
+        if folder and os.path.isdir(folder):
+            info_file = os.path.join(folder, 'map_info.json')
+            if os.path.isfile(info_file):
+                try:
+                    with open(info_file, 'r', encoding='utf-8') as f:
+                        self.map_info_db = json.load(f)
+                except Exception:
+                    pass
+
+    def _save_map_info(self):
+        folder = self.custom_folder.get().strip()
+        if folder and os.path.isdir(folder) and self.map_info_db:
+            info_file = os.path.join(folder, 'map_info.json')
+            try:
+                with open(info_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.map_info_db, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                logging.error(f"Failed to save map info: {e}", exc_info=True)
+
     def _refresh_all(self):
+        self._load_map_info()
         self._refresh_custom()
         self._refresh_standard()
         self._render_replacements()
@@ -1387,18 +1475,9 @@ class MapLoaderApp(tk.Tk):
             
         maps = list_custom_maps(folder)
         
-        # Зчитуємо базу даних з метаданими карт (назви, прев'ю)
-        info_db = {}
-        info_file = os.path.join(folder, 'map_info.json')
-        if os.path.isfile(info_file):
-            try:
-                with open(info_file, 'r', encoding='utf-8') as f:
-                    info_db = json.load(f)
-            except Exception:
-                pass
-
+        # Просто беремо інфо з кешу в пам'яті
         for m in maps:
-            self._custom_tile(self._custom_frame, m, info_db.get(m, {}))
+            self._custom_tile(self._custom_frame, m, self.map_info_db.get(m, {}))
 
     def _refresh_standard(self):
         for w in self._standard_frame.winfo_children(): w.destroy()
@@ -1449,43 +1528,48 @@ class MapLoaderApp(tk.Tk):
         del_btn = ttk.Button(bot_frame, text='✕', width=3, command=lambda: self._delete_custom(filename))
         del_btn.pack(side='right')
 
-        # ── Асинхронне завантаження картинки ──
-        def _fetch_img():
-            url = info.get('preview_url')
-            img_width, img_height = 144, 81  
-            cache_key = f"{url}_{img_width}x{img_height}" # Додали розмір в ключ
+       # ── Асинхронне завантаження картинки ──
+        async def async_fetch_img():
+            url = info.get('preview_url')  # <-- ТУТ ВИПРАВЛЕНО m на info
+            img_width, img_height = 144, 81  # <-- ТУТ ПРАВИЛЬНІ РОЗМІРИ
+            cache_key = f"{url}_{img_width}x{img_height}"
             
+            # Якщо вже є в кеші — миттєво ставимо через Tkinter
             if url and cache_key in IMG_CACHE:
-                photo = IMG_CACHE[cache_key]
-                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                self.after(0, lambda: img_lbl.config(image=IMG_CACHE[cache_key]))
                 return
 
-            photo = None
+            pil_img = None
             if url:
                 try:
-                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=3) as r:
-                        data = r.read()
-                    import io
-                    img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
-                    photo = ImageTk.PhotoImage(img)
-                    IMG_CACHE[cache_key] = photo # Зберігаємо за новим ключем
-                except Exception:
-                    pass
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, timeout=5) as r:
+                            if r.status == 200:
+                                data = await r.read()
+                                import io
+                                pil_img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
+                except Exception as e:
+                    logging.warning(f"Не вдалося завантажити картинку {url}: {e}")
 
-            if photo:
-                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
-            else:
+            def apply_image():
                 try:
-                    img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
-                    draw = ImageDraw.Draw(img)
-                    draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
-                    photo = ImageTk.PhotoImage(img)
-                    self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                    if pil_img:
+                        photo = ImageTk.PhotoImage(pil_img)
+                        IMG_CACHE[cache_key] = photo
+                    else:
+                        img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
+                        draw = ImageDraw.Draw(img)
+                        draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
+                        photo = ImageTk.PhotoImage(img)
+
+                    img_lbl.image = photo 
+                    img_lbl.config(image=photo)
                 except Exception:
                     pass
 
-        IMG_POOL.submit(_fetch_img)
+            self.after(0, apply_image)
+
+        asyncio.run_coroutine_threadsafe(async_fetch_img(), ASYNC_LOOP)
 
     def _std_tile(self, parent, name):
         btn_style = 'Accent.TButton' if self.sel_standard.get() == name else 'TButton'
@@ -1506,6 +1590,12 @@ class MapLoaderApp(tk.Tk):
         p = os.path.join(self.custom_folder.get(), name)
         try:
             os.remove(p)
+            
+            # Видаляємо інфо з кешу, щоб файл не розростався сміттям
+            if name in self.map_info_db:
+                del self.map_info_db[name]
+                self._save_map_info()
+                
             if self.sel_custom.get() == name: self.sel_custom.set('')
             self.status_var.set(self._t('delete_success', name=name))
             self._refresh_custom()
@@ -1656,42 +1746,55 @@ class MapLoaderApp(tk.Tk):
         ttk.Button(bot_frame, text=btn_text, style=btn_style,
                    command=lambda mi=m: self._download_map(mi)).pack(side='right', anchor='se')
 
-        def _fetch_img():
+        # ── Асинхронне завантаження картинки ──
+        async def async_fetch_img():
             url = m.get('preview_url')
             img_width, img_height = 288, 162  
-            cache_key = f"{url}_{img_width}x{img_height}" # Додали розмір в ключ
+            cache_key = f"{url}_{img_width}x{img_height}"
             
+            # Якщо вже є в кеші — миттєво ставимо через Tkinter
             if url and cache_key in IMG_CACHE:
-                photo = IMG_CACHE[cache_key]
-                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                self.after(0, lambda: img_lbl.config(image=IMG_CACHE[cache_key]))
                 return
 
-            photo = None
+            pil_img = None
             if url:
                 try:
-                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=5) as r:
-                        data = r.read()
-                    import io
-                    img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
-                    photo = ImageTk.PhotoImage(img)
-                    IMG_CACHE[cache_key] = photo # Зберігаємо за новим ключем
-                except Exception:
-                    pass
+                    # Асинхронний запит (не блокує інтерфейс!)
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(url, timeout=5) as r:
+                            if r.status == 200:
+                                data = await r.read()
+                                import io
+                                # Обробка картинки (розмір)
+                                pil_img = Image.open(io.BytesIO(data)).resize((img_width, img_height), Image.Resampling.BILINEAR)
+                except Exception as e:
+                    logging.warning(f"Не вдалося завантажити картинку {url}: {e}")
 
-            if photo:
-                self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
-            else:
+            # Функція, яка виконається в головному потоці Tkinter для оновлення UI
+            def apply_image():
                 try:
-                    img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
-                    draw = ImageDraw.Draw(img)
-                    draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
-                    photo = ImageTk.PhotoImage(img)
-                    self.after(0, lambda: (setattr(img_lbl, 'image', photo), img_lbl.config(image=photo)))
+                    if pil_img:
+                        photo = ImageTk.PhotoImage(pil_img)
+                        IMG_CACHE[cache_key] = photo
+                    else:
+                        # Дефолтна заглушка, якщо картинки немає
+                        img = Image.new('RGB', (img_width, img_height), '#333333' if self.theme_mode.get() == 'dark' else '#cccccc')
+                        draw = ImageDraw.Draw(img)
+                        draw.text((img_width//2, img_height//2), "No Image", fill="white", anchor="mm")
+                        photo = ImageTk.PhotoImage(img)
+
+                    # Захист від garbage collector
+                    img_lbl.image = photo 
+                    img_lbl.config(image=photo)
                 except Exception:
                     pass
 
-        IMG_POOL.submit(_fetch_img)
+            # Відправляємо оновлення картинки назад у Tkinter
+            self.after(0, apply_image)
+
+        # Безпечно передаємо нашу асинхронну задачу у фоновий цикл подій
+        asyncio.run_coroutine_threadsafe(async_fetch_img(), ASYNC_LOOP)
 
 
     def _download_map(self, m):
@@ -1728,21 +1831,12 @@ class MapLoaderApp(tk.Tk):
 
                 # ЗБЕРЕЖЕННЯ ІНФОРМАЦІЇ ПРО КАРТУ (ДЛЯ ПРЕВ'Ю В ЛОКАЛЬНИХ КАРТАХ)
                 if final_filename:
-                    try:
-                        info_file = os.path.join(folder, 'map_info.json')
-                        info_db = {}
-                        if os.path.isfile(info_file):
-                            with open(info_file, 'r', encoding='utf-8') as f:
-                                info_db = json.load(f)
-                        info_db[final_filename] = {
-                            'title': title,
-                            'author': m.get('author', ''),
-                            'preview_url': m.get('preview_url', '')
-                        }
-                        with open(info_file, 'w', encoding='utf-8') as f:
-                            json.dump(info_db, f, ensure_ascii=False, indent=2)
-                    except Exception as e:
-                        print("Failed to save map info:", e)
+                    self.map_info_db[final_filename] = {
+                        'title': title,
+                        'author': m.get('author', ''),
+                        'preview_url': m.get('preview_url', '')
+                    }
+                    self.after(0, self._save_map_info) # Одразу зберігаємо на диск
 
                 self.after(0, self._hide_progress)
                 self.after(0, lambda: messagebox.showinfo(
@@ -1769,23 +1863,14 @@ class MapLoaderApp(tk.Tk):
                 req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
                 with urllib.request.urlopen(req, timeout=10) as response:
                     data = json.loads(response.read().decode('utf-8'))
-                
-                latest_tag = data.get('tag_name', '').lstrip('v').strip()
-                current_tag = VERSION.lstrip('v').strip() 
-
-                if not latest_tag:
-                    return
-
-                def parse_v(v): 
-                    return tuple(int(x) for x in v.split(".") if x.isdigit())
-
-                parsed_latest = parse_v(latest_tag)
-                parsed_current = parse_v(current_tag)
-
-                if parsed_latest and parsed_current and parsed_latest > parsed_current:
-                    self.after(0, lambda: self._prompt_update(latest_tag, data))
+            except HTTPError as e:
+                logging.error(f"Сервер відхилив запит перевірки оновлень. Код: {e.code}")
+            except URLError as e:
+                logging.error(f"Помилка мережі при перевірці оновлень: {e.reason}")
+            except json.JSONDecodeError:
+                logging.error("API GitHub повернуло невалідний JSON.")
             except Exception as e:
-                print(f"Помилка перевірки оновлень: {e}")
+                logging.error(f"Непередбачена помилка в check_for_updates: {e}", exc_info=True)
 
         threading.Thread(target=_task, daemon=True).start()
 
@@ -1888,5 +1973,6 @@ class MapLoaderApp(tk.Tk):
         threading.Thread(target=_do_update, daemon=True).start()
 
 if __name__ == '__main__':
+    setup_logger()
     app = MapLoaderApp()
     app.mainloop()

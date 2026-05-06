@@ -1,0 +1,46 @@
+name: Build and Release RLCML
+
+# Цей екшен запускатиметься тільки тоді, коли ти пушиш тег, що починається на "v" (наприклад, v1.1.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build EXE for Windows
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --noconfirm --onefile --windowed --icon=logo.ico --add-data "logo.png;." map_loader.py
+
+    - name: Rename Output File
+      run: |
+        Rename-Item -Path "dist\map_loader.exe" -NewName "RLCML_${{ github.ref_name }}.exe"
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/RLCML_${{ github.ref_name }}.exe
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
