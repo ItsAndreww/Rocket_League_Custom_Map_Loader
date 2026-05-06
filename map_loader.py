@@ -1,4 +1,4 @@
-VERSION = "1.2.0"  # Поточна версія
+VERSION = "1.2.1"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
 
 import os
