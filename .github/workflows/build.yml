@@ -31,7 +31,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onefile --windowed --icon=logo.ico --add-data "logo.png;." map_loader.py
+        pyinstaller --noconfirm --onefile --windowed --icon=logo.ico --add-data "logo.ico;." map_loader.py
 
     - name: Rename Output File
       run: |
