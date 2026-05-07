@@ -4,3 +4,33 @@
 2026-05-07 01:54:29 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.1.0 Started ===
 2026-05-07 01:56:44 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.0 Started ===
 2026-05-07 02:24:34 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.0 Started ===
+2026-05-07 19:41:59 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.1 Started ===
+2026-05-07 19:42:07 - INFO - [download_map_natively] Швидке API-завантаження не вдалося (Version ID не знайдено в HTML.). Перехід на Selenium...
+2026-05-07 19:49:42 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.1 Started ===
+2026-05-07 19:49:48 - ERROR - [download_map_natively] Помилка прямого завантаження карти: Version ID не знайдено в HTML сторінки.
+Traceback (most recent call last):
+  File "D:\RLCML\Rocket_League_Custom_Map_Loader\map_loader.py", line 474, in download_map_natively
+    raise ValueError("Version ID не знайдено в HTML сторінки.")
+ValueError: Version ID не знайдено в HTML сторінки.
+2026-05-07 19:49:52 - ERROR - [download_map_natively] Помилка прямого завантаження карти: Version ID не знайдено в HTML сторінки.
+Traceback (most recent call last):
+  File "D:\RLCML\Rocket_League_Custom_Map_Loader\map_loader.py", line 474, in download_map_natively
+    raise ValueError("Version ID не знайдено в HTML сторінки.")
+ValueError: Version ID не знайдено в HTML сторінки.
+2026-05-07 19:50:57 - ERROR - [download_map_natively] Помилка прямого завантаження карти: Version ID не знайдено в HTML сторінки.
+Traceback (most recent call last):
+  File "D:\RLCML\Rocket_League_Custom_Map_Loader\map_loader.py", line 474, in download_map_natively
+    raise ValueError("Version ID не знайдено в HTML сторінки.")
+ValueError: Version ID не знайдено в HTML сторінки.
+2026-05-07 19:51:01 - ERROR - [download_map_natively] Помилка прямого завантаження карти: Version ID не знайдено в HTML сторінки.
+Traceback (most recent call last):
+  File "D:\RLCML\Rocket_League_Custom_Map_Loader\map_loader.py", line 474, in download_map_natively
+    raise ValueError("Version ID не знайдено в HTML сторінки.")
+ValueError: Version ID не знайдено в HTML сторінки.
+2026-05-07 19:52:21 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.1 Started ===
+2026-05-07 19:52:28 - ERROR - [download_map_natively] Помилка прямого завантаження карти: Version ID не знайдено в HTML сторінки.
+Traceback (most recent call last):
+  File "D:\RLCML\Rocket_League_Custom_Map_Loader\map_loader.py", line 478, in download_map_natively
+    raise ValueError("Version ID не знайдено в HTML сторінки.")
+ValueError: Version ID не знайдено в HTML сторінки.
+2026-05-07 19:54:11 - INFO - [setup_logger] === Rocket League Custom Map Loader v1.2.1 Started ===

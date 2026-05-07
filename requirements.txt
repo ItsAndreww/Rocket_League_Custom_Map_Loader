@@ -1,8 +1,6 @@
 beautifulsoup4
-selenium
-webdriver-manager
 pillow
 pystray
-sv-ttk
+sv_ttk
 pywinstyles
 aiohttp

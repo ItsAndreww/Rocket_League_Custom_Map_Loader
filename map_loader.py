@@ -1,4 +1,4 @@
-VERSION = "1.2.1"  # Поточна версія
+VERSION = "1.2.5"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
 
 import os
@@ -88,23 +88,6 @@ import zipfile
 import tempfile
 import time
 import string
-
-# ── Selenium & Webdriver Manager ──
-os.environ['WDM_LOG']       = '0'
-os.environ['WDM_LOG_LEVEL'] = '0'
-os.environ['WDM_SSL_VERIFY']= '0'
-logging.getLogger('WDM').setLevel(logging.ERROR)
-
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 from PIL import Image, ImageTk, ImageDraw
 
@@ -364,170 +347,6 @@ def save_config(cfg):
 # BROWSER / WEBDRIVER 
 # ════════════════════════════════════════════════════════════════
 
-def _find_binary(browser: str):
-    pf   = os.environ.get('PROGRAMFILES',      r'C:\Program Files')
-    pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
-    lad  = os.environ.get('LOCALAPPDATA',      '')
-
-    paths = {
-        'edge':   [
-            os.path.join(pf86, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-            os.path.join(pf,   'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-            os.path.join(lad,  'Microsoft', 'Edge', 'Application', 'msedge.exe'),
-        ],
-        'chrome': [
-            os.path.join(pf,   'Google', 'Chrome', 'Application', 'chrome.exe'),
-            os.path.join(pf86, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-            os.path.join(lad,  'Google', 'Chrome', 'Application', 'chrome.exe'),
-        ],
-    }
-    for p in paths.get(browser, []):
-        if os.path.isfile(p):
-            return p
-    return shutil.which({'edge': 'msedge', 'chrome': 'chrome'}.get(browser, ''))
-
-
-def _find_driver(browser: str):
-    name = {'edge': 'msedgedriver.exe', 'chrome': 'chromedriver.exe'}.get(browser)
-    if not name:
-        return None
-
-    candidates = []
-    browser_bin = _find_binary(browser)
-    if browser_bin:
-        candidates.append(os.path.join(os.path.dirname(browser_bin), name))
-
-    pf   = os.environ.get('PROGRAMFILES',      r'C:\Program Files')
-    pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
-    lad  = os.environ.get('LOCALAPPDATA',      '')
-    if browser == 'edge':
-        candidates += [
-            os.path.join(pf,   'Microsoft', 'Edge', 'Application', name),
-            os.path.join(pf86, 'Microsoft', 'Edge', 'Application', name),
-            os.path.join(lad,  'Microsoft', 'Edge', 'Application', name),
-            os.path.join(pf,   'Microsoft', 'EdgeWebDriver', name),
-        ]
-    elif browser == 'chrome':
-        candidates += [
-            os.path.join(pf,   'Google', 'Chrome', 'Application', name),
-            os.path.join(pf86, 'Google', 'Chrome', 'Application', name),
-            os.path.join(lad,  'Google', 'Chrome', 'Application', name),
-        ]
-
-    from_path = shutil.which(name)
-    if from_path:
-        candidates.append(from_path)
-
-    for c in candidates:
-        if c and os.path.isfile(c):
-            return c
-    return None
-
-
-def _chromium_options(browser: str, download_dir: str = None):
-    opts = webdriver.EdgeOptions() if browser == 'edge' else webdriver.ChromeOptions()
-    opts.add_argument('--window-position=-32000,-32000') 
-    opts.add_argument('--window-size=1280,720')
-    opts.add_argument('--no-sandbox')
-    opts.add_argument('--disable-dev-shm-usage')
-    opts.add_argument('--disable-gpu')
-    opts.add_argument('--log-level=3')
-    opts.add_argument('--disable-blink-features=AutomationControlled')
-
-    try:
-        opts.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
-        opts.add_experimental_option('useAutomationExtension', False)
-    except Exception:
-        pass
-
-    prefs = {
-        'safebrowsing.enabled': False,
-        'profile.default_content_setting_values.popups': 2,
-        'profile.default_content_setting_values.notifications': 2,
-    }
-    if download_dir:
-        prefs['download.default_directory']  = download_dir
-        prefs['download.prompt_for_download'] = False
-        prefs['download.directory_upgrade']   = True
-    try:
-        opts.add_experimental_option('prefs', prefs)
-    except Exception:
-        pass
-
-    binary = _find_binary(browser)
-    if binary:
-        opts.binary_location = binary
-
-    return opts
-
-
-def create_webdriver(browser: str, download_dir: str = None):
-    opts = _chromium_options(browser, download_dir)
-
-    def _try_service(service_obj):
-        if browser == 'edge':
-            d = webdriver.Edge(service=service_obj, options=opts)
-        else:
-            d = webdriver.Chrome(service=service_obj, options=opts)
-        try:
-            d.execute_cdp_cmd('Network.enable', {})
-        except Exception:
-            pass
-        return d
-
-    last_error = None
-    local = _find_driver(browser)
-    if local:
-        try:
-            svc = EdgeService(local) if browser == 'edge' else ChromeService(local)
-            return _try_service(svc)
-        except Exception as e:
-            last_error = e
-
-    try:
-        svc = EdgeService() if browser == 'edge' else ChromeService()
-        return _try_service(svc)
-    except Exception as e:
-        last_error = e
-
-    try:
-        if browser == 'edge':
-            svc = EdgeService(EdgeChromiumDriverManager().install())
-        else:
-            svc = ChromeService(ChromeDriverManager().install())
-        return _try_service(svc)
-    except Exception as e:
-        last_error = e
-
-    if last_error:
-        raise last_error
-    return None
-
-
-def _get_driver(download_dir: str = None):
-    err_msgs = []
-    for browser in ('chrome', 'edge'):
-        if _find_binary(browser): 
-            try:
-                d = create_webdriver(browser, download_dir)
-                if d is not None:
-                    return d
-            except Exception as e:
-                err_msgs.append(f"{browser.upper()}: {str(e)}")
-    if err_msgs:
-        raise RuntimeError("Помилка ініціалізації драйверів:\n\n" + "\n".join(err_msgs))
-    raise RuntimeError(tr('browser_not_found'))
-
-
-def _wait_cf(driver, timeout: int = 15):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        t = driver.title.lower()
-        if 'moment' not in t and 'cloudflare' not in t and 'just a sec' not in t:
-            return
-        time.sleep(0.5)
-
-
 # ════════════════════════════════════════════════════════════════
 # BAKKESPLUGINS SCRAPER
 # ════════════════════════════════════════════════════════════════
@@ -549,38 +368,18 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
     if params:
         url += "?" + "&".join(params)
 
-    html = ""
-    
-    # ── 1. СПРОБА ШВИДКОГО HTTP-ЗАПИТУ (Обхід Selenium) ──
     try:
         req = urllib.request.Request(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html',
         })
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             html = response.read().decode('utf-8')
-            
     except Exception as e:
-        # ── 2. ФОЛБЕК НА SELENIUM (Якщо Cloudflare заблокував) ──
-        # Якщо спіймали 403 або іншу помилку, падаємо на наш оптимізований Singleton-драйвер
-        try:
-            driver = _get_driver() # Викликаємо драйвер з Кроку 1
-            driver.get(url)
-            _wait_cf(driver)
-            
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/maps/']"))
-                )
-            except Exception:
-                pass
-                
-            html = driver.page_source
-        except Exception as driver_e:
-            raise RuntimeError(f"Помилка завантаження сторінки: {driver_e}") from driver_e
+        import logging
+        logging.error(f"Помилка доступу до BakkesPlugins: {e}")
+        raise RuntimeError(f"Не вдалося отримати список карт: {e}")
 
-    # ── 3. ПАРСИНГ HTML (Твоя логіка залишається без змін) ──
     soup = BeautifulSoup(html, 'html.parser')
     maps = []
     seen = set()
@@ -612,7 +411,6 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             s = img.get('src') or img.get('data-src', '')
             if s and s.startswith('http'): preview = s
 
-        # Розумний пошук автора
         author = ""
         author_span = a.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
         
@@ -621,16 +419,13 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
             for _ in range(4): 
                 if not parent or parent.name == 'body':
                     break
-            
                 links = parent.find_all('a', href=_re.compile(r'^/maps/\d+$'))
                 mids = set()
                 for l in links:
                     m = _re.search(r'/maps/(\d+)', l.get('href', ''))
                     if m: mids.add(m.group(1))
-                    
                 if len(mids) > 1:
                     break
-                    
                 author_span = parent.find('span', class_=lambda c: c and 'truncate' in c and 'text-sm' in c)
                 if author_span:
                     break
@@ -653,133 +448,62 @@ def get_bakkes_maps(page: int = 1, search_query: str = '') -> list:
     return maps
 
 def download_map_natively(map_info: dict) -> tuple:
-    import time
+    import re
+    import urllib.request
+    import logging
+
     page_url = map_info.get('page_url', '')
+    mid = map_info.get('map_id', '')
+
     if not page_url:
         raise Exception("Не знайдено посилання на сторінку карти.")
-    temp_dl_dir = os.path.abspath(tempfile.mkdtemp())
-    driver      = None
-    try:
-        driver = _get_driver(download_dir=temp_dl_dir)
-        try:
-            driver.execute_cdp_cmd('Page.setDownloadBehavior', {
-                'behavior':     'allow',
-                'downloadPath': temp_dl_dir,
-            })
-        except Exception:
-            pass
-        driver.get(page_url)
-        _wait_cf(driver, timeout=20)
-        time.sleep(3) 
-        try:
-            script_click_arrow = """
-            var btns = Array.from(document.querySelectorAll('button'));
-            var installBtn = btns.find(b => b.innerText.includes('Install'));
-            if (installBtn && installBtn.nextElementSibling && installBtn.nextElementSibling.tagName === 'BUTTON') {
-                installBtn.nextElementSibling.scrollIntoView({block: 'center'});
-                installBtn.nextElementSibling.click();
-                return true;
-            }
-            return false;
-            """
-            if not driver.execute_script(script_click_arrow):
-                install_btn = driver.find_element(By.XPATH, "//button[contains(., 'Install')]")
-                arrow_btn = install_btn.find_element(By.XPATH, "following-sibling::button")
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", arrow_btn)
-                arrow_btn.click()
-        except Exception:
-            pass
-        time.sleep(1.5)
-        clicked = False
-        try:
-            script_click_zip = """
-            var els = Array.from(document.querySelectorAll('a, button, div[role="menuitem"], span, p'));
-            var visibleEls = els.filter(el => el.offsetWidth > 0 && el.offsetHeight > 0);
-            for (var i = 0; i < visibleEls.length; i++) {
-                var text = (visibleEls[i].innerText || '').toLowerCase().trim();
-                if (text.includes('zip') && text.length < 30) {
-                    var target = visibleEls[i].closest('a') || visibleEls[i].closest('button') || visibleEls[i];
-                    target.scrollIntoView({block: 'center'});
-                    if (target.tagName === 'A' && target.href) {
-                        window.location.href = target.href;
-                    } else {
-                        target.click();
-                    }
-                    return true;
-                }
-            }
-            return false;
-            """
-            if driver.execute_script(script_click_zip):
-                clicked = True
-            else:
-                zip_els = driver.find_elements(By.XPATH, "//*[contains(translate(., 'ZIP', 'zip'), 'zip')]")
-                for el in zip_els:
-                    if el.is_displayed():
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
-                        time.sleep(0.5)
-                        try:
-                            el.click()
-                        except:
-                            driver.execute_script("arguments[0].click();", el)
-                        clicked = True
-                        break
-        except Exception:
-            pass
-        if not clicked:
-            fallback_script = """
-            var mapId = window.location.pathname.split('/').filter(Boolean).pop();
-            var html  = document.documentElement.innerHTML;
-            var vId = null;
-            var m = html.match(/"versions":\\s*\\[\\s*\\{\\s*"id":\\s*(\\d+)/);
-            if (m) vId = m[1];
-            if (vId && mapId) {
-                var url = 'https://bakkesplugins.com/api/rocket-league-maps/' + mapId + '/download/' + vId;
-                fetch(url, { method: 'POST', headers: { accept: 'application/json' } })
-                .then(r => r.json())
-                .then(data => {
-                    if (data && (data.url || data.downloadUrl)) {
-                        window.location.href = data.url || data.downloadUrl;
-                    }
-                }).catch(e => console.log(e));
-            }
-            """
-            driver.execute_script(fallback_script)
-        timeout     = 180  
-        start       = time.time()
-        dl_file     = None
-        started     = False
-        while time.time() - start < timeout:
-            files = os.listdir(temp_dl_dir)
-            if files:
-                started = True
-            done = [f for f in files if not f.endswith('.crdownload') and not f.endswith('.tmp')]
-            if done:
-                path = os.path.join(temp_dl_dir, done[0])
-                s1   = os.path.getsize(path)
-                time.sleep(2.0)
-                if os.path.exists(path) and os.path.getsize(path) == s1 and s1 > 0:
-                    dl_file = path
-                    break
-            else:
-                if not started and time.time() - start > 35:
-                    raise RuntimeError('Завантаження не почалося.')
-            time.sleep(1)
-        if not dl_file:
-            raise RuntimeError('Час очікування завантаження вийшов.')
-        with open(dl_file, 'rb') as f:
-            data = f.read()
-        name = os.path.basename(dl_file)
-        driver.quit(); driver = None
-        shutil.rmtree(temp_dl_dir, ignore_errors=True)
-        return data, name
-    except Exception as e:
-        if driver:
-            try: driver.quit()
-            except Exception: pass
-        shutil.rmtree(temp_dl_dir, ignore_errors=True)
-        raise e
 
+    try:
+        # 1. Отримуємо HTML сторінки карти
+        req1 = urllib.request.Request(page_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html'
+        })
+        with urllib.request.urlopen(req1, timeout=10) as r1:
+            html = r1.read().decode('utf-8')
+
+        # 2. Шукаємо пряме CDN-посилання на завантаження в новому Nuxt-коді
+        match = re.search(r'https://cdn\.bakkesplugins\.com/uploads/[^"\'\s>]+?\.(?:zip|rar|7z|upk|udk)', html)
+        
+        dl_url = None
+        if match:
+            dl_url = match.group(0)
+        else:
+            # Резервний фолбек, якщо структура знову зміниться (старий метод)
+            v_match = re.search(r'"versions"\s*:\s*\[\s*\{\s*"id"\s*:\s*(\d+)', html)
+            if v_match:
+                import json
+                vid = v_match.group(1)
+                api_url = f"https://bakkesplugins.com/api/rocket-league-maps/{mid}/download/{vid}"
+                req2 = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'}, method='POST')
+                req2.add_header('Accept', 'application/json')
+                with urllib.request.urlopen(req2, timeout=10) as r2:
+                    api_data = json.loads(r2.read().decode('utf-8'))
+                dl_url = api_data.get('url') or api_data.get('downloadUrl')
+
+        if not dl_url:
+            raise ValueError("Не вдалося знайти посилання на файл архіву в коді сторінки.")
+
+        # 3. Завантажуємо сам файл карти
+        req3 = urllib.request.Request(dl_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req3, timeout=120) as r3:
+            data = r3.read()
+
+        # Формуємо правильну назву файлу з URL
+        fname = dl_url.split('/')[-1].split('?')[0]
+        if not fname or len(fname) > 60:
+            fname = f"map_{mid}.zip"
+
+        return data, fname
+
+    except Exception as e:
+        logging.error(f"Помилка прямого завантаження карти: {e}", exc_info=True)
+        raise RuntimeError(f"Не вдалося завантажити карту: {e}")
 
 def extract_map_from_zip(zip_path: str, dest_folder: str):
     with zipfile.ZipFile(zip_path, 'r') as zf:
