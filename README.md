@@ -98,3 +98,4 @@ python map_loader.py
 This project is provided for personal and educational use. Rocket League is a trademark of Psyonix.
 Made by **ItsAndreww.**
 **Contact Me:** andriy.novo05@gmail.com
+I am not responsible for what may happen to your account; please use it with caution
