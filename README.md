@@ -37,26 +37,27 @@ If you do not have Python installed, you can download the latest standalone vers
 
 1. Navigate to the **Download Maps** tab.  
 2. Enter a search term (e.g., "Rings") in the search bar and click **Search**.  
-3. Find the map you want in the results and click **Download**.  
-4. The application will instantly fetch the map via API or gracefully bypass Cloudflare if needed.  
+3. Find the map you want in the results and click **Download**. You can also view map descriptions inline by clicking **Details**.  
+4. The application will fetch the map seamlessly.  
 5. If the map is in a **ZIP archive**, the application **automatically extracts** the correct map file to your designated custom maps folder.  
 6. Return to the **Local Maps** tab and click Refresh Lists to see your new map.
 
 ## Core Features
 
-* **Lightning-Fast Search & Previews:** Asynchronous image loading and API-first map fetching for a buttery-smooth interface.
+* **Lightning-Fast Search & Previews:** Background image loading and API-first map fetching for a buttery-smooth interface.
 * **Map Replacement:** Swap standard Rocket League maps with custom files while maintaining automatic backups for easy restoration.
-* **Integrated Downloader:** Search and download maps directly from BakkesMod with integrated preview images.
+* **Integrated Downloader:** Search and download maps directly from BakkesMod with integrated preview images and inline descriptions.
+* **Playtime Tracking:** Automatically tracks how much time you spend playing each custom map and displays it in the UI.
 * **Automated Workflow:** Automatic ZIP extraction for downloaded archives and intelligent detection of the Rocket League installation path.
-* **Game Integration:** Launch Rocket League directly from the interface (Custom command-line arguments support is currently planned/WIP).
+* **Game Integration:** Launch Rocket League directly from the interface.
 * **Modern UI:** Native Windows 11 styling support (Mica effect), dark/light mode toggle, and system tray minimization.
 * **Auto-Updater:** Built-in update checker and installer to keep you on the latest version seamlessly.
 
 ## Technical Implementation
 
-* **Hybrid Scraping Engine:** Attempts blazing-fast direct HTTP/API requests first, falling back to a Singleton Selenium WebDriver to handle Cloudflare protections only when necessary.
-* **Asynchronous Architecture:** Utilizes `asyncio` and `aiohttp` to manage concurrent network requests and background tasks without blocking the Tkinter `mainloop`.
-* **Optimized I/O:** Implements in-memory caching for metadata (`map_info.json`) to drastically reduce disk read/write operations.
+* **Lightweight Scraping Engine:** Uses pure `urllib` and `BeautifulSoup` for incredibly fast map parsing and details extraction without the bloat of Selenium or Chromium drivers.
+* **Asynchronous Architecture:** Utilizes Python's `threading` and `asyncio` to manage concurrent network requests and background tasks (like background map downloads and playtime tracking) without blocking the Tkinter `mainloop`.
+* **Optimized I/O:** Implements in-memory caching for metadata (`map_info.json`) to drastically reduce disk read/write operations. Smart cleanup of preview images on map deletion.
 * **Comprehensive Logging:** Utilizes Python's native `logging` module with a `RotatingFileHandler` to generate `rlcml.log` for reliable debugging in production (`--noconsole`) environments.
 * **CI/CD Pipeline:** Fully automated build and release process via GitHub Actions.
 
@@ -66,30 +67,30 @@ If you do not have Python installed, you can download the latest standalone vers
 The project is configured with a GitHub Actions workflow. Creating a new tag (e.g., `v1.2.0`) and pushing it to the repository will automatically trigger a clean build and publish the `.exe` to the Releases tab.
 
 ### Manual Build
-To create a standalone one-file executable manually with all necessary drivers and certificates, use the following command:
+To create a standalone one-file executable manually, use the following command:
 ```bash
-python -m PyInstaller --noconsole --onefile --icon=logo.png --add-data "logo.png;." --collect-all selenium --collect-data certifi map_loader.py
+python -m PyInstaller --noconsole --onefile --icon=logo.png --add-data "logo.png;." map_loader.py
 ```
 
 ### Running from Source
 
-To run the script directly, ensure you have **Python 3.9+** and a Chromium-based browser (Microsoft Edge or Google Chrome) installed.
+To run the script directly, ensure you have **Python 3.9+**.
 
-**1.Install required dependencies:** 
+**1. Install required dependencies:** 
 ```bash
-pip install beautifulsoup4 pillow selenium webdriver-manager pystray sv_ttk pywinstyles aiohttp
+pip install beautifulsoup4 pillow pystray sv_ttk pywinstyles
 ```
 
-**2.Execute the script:**
+**2. Execute the script:**
+```bash
 python map_loader.py
+```
 
 ## Troubleshooting
 
-**Driver Initialization:** If the application fails to launch the browser, verify your internet connection. The application will attempt to use local drivers before downloading the latest versions via webdriver-manager.  
-
 **Map Visibility:** Standard maps available for replacement are currently limited to specific Labs maps (e.g., Underpass, Basin) to ensure game stability. 
 
-**Debugging:** If you experience crashes, check the rlcml.log file generated in the same directory as the executable.
+**Debugging:** If you experience crashes, check the `rlcml.log` file generated in the same directory as the executable.
 
 **Permissions:** Ensure the application has the necessary permissions to write to the Rocket League installation directory for map replacement.
 

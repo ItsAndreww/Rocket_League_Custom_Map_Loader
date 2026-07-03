@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Application data
+config.json
+map_info.json
+rlcml.log
+temp_map.tmp
+*_backup.upk
+*_backup.udk
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# Debug files
+defs.txt
+map138.html
