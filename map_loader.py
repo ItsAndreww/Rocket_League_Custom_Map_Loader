@@ -78,7 +78,20 @@ def _base_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 def _data_dir():
-    return _base_dir()
+    appdata = os.environ.get('LOCALAPPDATA') or os.environ.get('APPDATA') or os.path.expanduser('~')
+    d = os.path.join(appdata, 'RLCML')
+    os.makedirs(d, exist_ok=True)
+    
+    old_cfg = os.path.join(_base_dir(), 'config.json')
+    new_cfg = os.path.join(d, 'config.json')
+    if os.path.exists(old_cfg) and not os.path.exists(new_cfg):
+        try:
+            import shutil
+            shutil.copy2(old_cfg, new_cfg)
+        except Exception:
+            pass
+            
+    return d
 
 def resource_path(relative_path):
     """ Отримує шлях до ресурсів, адаптований для PyInstaller """
