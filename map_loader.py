@@ -4,10 +4,8 @@ GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader"
 import os
 import sys
 import logging
-import aiohttp
 import threading 
 import asyncio
-import aiohttp
 from logging.handlers import RotatingFileHandler
 from urllib.error import URLError, HTTPError
 from pathlib import Path
@@ -136,7 +134,6 @@ from tkinter import filedialog, messagebox, ttk
 import json
 import urllib.request
 import shlex
-from bs4 import BeautifulSoup
 import threading
 import zipfile
 import tempfile
@@ -1714,7 +1711,7 @@ class MapLoaderApp(tk.Tk):
                 if not os.path.isfile(bak_path):
                     try: shutil.copy2(sp, bak_path)
                     except Exception as e:
-                        self.after(0, lambda: messagebox.showerror(self._t('error_title'), self._t('backup_failed', error=e)))
+                        self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), self._t('backup_failed', error=err)))
                         return
                 try:
                     tmp = os.path.join(mf, 'temp_map.tmp')
@@ -1901,7 +1898,7 @@ class MapLoaderApp(tk.Tk):
                             self.after(0, lambda: desc_lbl.config(text=d))
                             desc_state['loaded'] = True
                         except Exception as e:
-                            self.after(0, lambda: desc_lbl.config(text=f"Error: {e}"))
+                            self.after(0, lambda err=e: desc_lbl.config(text=f"Error: {err}"))
                     import threading
                     threading.Thread(target=_fetch, daemon=True).start()
                     
@@ -2029,8 +2026,8 @@ class MapLoaderApp(tk.Tk):
             api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             try:
                 req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    data = json.loads(response.read().decode('utf-8'))
+                with urllib.request.urlopen(req, timeout=10):
+                    pass
             except HTTPError as e:
                 logging.error(f"Сервер відхилив запит перевірки оновлень. Код: {e.code}")
             except URLError as e:
