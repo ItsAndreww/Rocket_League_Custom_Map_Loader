@@ -1,5 +1,7 @@
-VERSION = "1.3.0"  # Поточна версія
+VERSION = "1.3.1"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
+
+ENABLE_PROFILING = False
 
 import os
 import sys
@@ -203,6 +205,7 @@ LANGUAGES = {
         'maps_folder': 'Папка з картами в RL:',
         'browse': 'Огляд...', 'auto_detect': 'Автодетект',
         'refresh': 'Оновити', 'refresh_lists': 'Оновити списки',
+        'replaced_with': 'Замінено на:',
         'replace_map': 'Замінити карту',
         'custom_maps': 'Кастомні карти',
         'standard_maps': 'Стандартні карти для заміни',
@@ -254,27 +257,38 @@ LANGUAGES = {
         'sort_rating': 'Найбільший рейтинг',
         'sort_views': 'Найбільше переглядів',
         'browser_not_found': 'Браузер не знайдено. Встановіть Edge або Chrome.',
+        'onboarding_title': 'Перше налаштування',
+        'onboarding_welcome': (
+            "Вітаємо у Rocket League Custom Map Loader!\n\n"
+            "Щоб розпочати, потрібно вказати дві ключові папки:\n"
+            "1. Де встановлена ваша гра (Rocket League).\n"
+            "2. Папку, де ви хочете зберігати завантажені кастомні мапи."
+        ),
+        'select_rl_folder': 'Виберіть папку Rocket League',
+        'select_custom_folder': 'Папка для кастомних мап',
+        'continue_btn': 'Продовжити',
+        'setup_wizard': 'Майстер налаштування',
+        'auto_update': 'Автооновлення',
         'help_tab': 'Інструкція',
-        'help_text': '''Як користуватись програмою:
-        1. Налаштування:
-        • Перейдіть у "⚙️ Налаштування" на верхній панелі.
-        • Вкажіть шлях до гри Rocket League (натисніть "Автодетект").
-        • Оберіть папку на комп'ютері для кастомних карт (на вкладці "Локальні карти").
+        'help_text': '''### ⚙️ 1. Налаштування програми
+• Перейдіть у розділ **Налаштування** (іконка гайкового ключа зверху).
+• Знайдіть шлях до гри Rocket League, натиснувши кнопку **"Автодетект"**.
+• Створіть на вашому ПК будь-яку зручну папку для карт і оберіть її в полі **"Папка з кастомними картами"**.
 
-        2. Встановлення карти у гру:
-        • У вкладці "Локальні карти" оберіть кастомну карту зліва.
-        • Оберіть стандартну карту (яку не шкода замінити, зазвичай це Underpass) справа.
-        • Натисніть "Замінити карту". Програма автоматично зробить бекап оригінальної карти.
-        • Натисніть "Запустити гру". У грі створіть приватний матч або тренування на тій стандартній карті, яку ви замінили.
+### 🎮 2. Встановлення карти у гру
+• У вкладці **"Локальні карти"** оберіть кастомну карту зліва (вона підсвітиться синім).
+• Справа оберіть стандартну карту (ту, яку не шкода замінити — зазвичай це Underpass).
+• Натисніть **"Замінити карту"**. Програма автоматично зробить надійний бекап оригінальної карти.
+• Запустіть гру та створіть Приватний матч (або Тренування) на тій стандартній карті, яку ви замінили.
 
-        3. Завантаження нових карт:
-        • Перейдіть у вкладку "Завантажити карти".
-        • Знайдіть потрібну карту через пошук і натисніть "Завантажити". Вона автоматично розпакується у вашу папку кастомних карт.
+### 📥 3. Завантаження нових карт
+• Перейдіть у вкладку **"Завантажити карти"**, де зібрані всі карти з BakkesMod.
+• Знайдіть потрібну через пошук або сортування і натисніть **"Завантажити"**. 
+• Вона автоматично розпакується у вашу папку і одразу з'явиться в локальних картах.
 
-        4. Відновлення оригінальних карт:
-        • Щоб повернути стандартну карту, натисніть "Відновити" у списку "Поточні заміни".
-        • Або просто закрийте програму (якщо в налаштуваннях обрано "Відновити і вийти"), і вона автоматично поверне всі карти на місце!
-        ''',
+### 🔄 4. Відновлення оригінальних карт
+• Щоб повернути стандартну карту, натисніть **"Відновити"** у списку **"Поточні заміни"**.
+• Або просто **закрийте програму** (якщо в налаштуваннях стоїть "Відновити і вийти"), і вона **миттєво поверне всі карти на свої місця!**''',
     },
     'en': {
         'always_on_top': 'Always on top',
@@ -297,6 +311,7 @@ LANGUAGES = {
         'maps_folder': 'RL maps folder:',
         'browse': 'Browse...', 'auto_detect': 'Auto detect',
         'refresh': 'Refresh', 'refresh_lists': 'Refresh Lists',
+        'replaced_with': 'Replaced with:',
         'replace_map': 'Replace Map',
         'custom_maps': 'Custom Maps',
         'standard_maps': 'Standard Maps to Replace',
@@ -320,9 +335,9 @@ LANGUAGES = {
         'replace_failed': 'Failed to replace map: {error}',
         'replace_success': 'Map "{custom}" installed instead of "{standard}".\nBackup: {backup}',
         'replace_status': 'Map replaced successfully.',
-        'replacement_history': 'Current replacements',
+        'replacement_history': 'Replacement History',
         'undo': 'Undo', 'delete': 'Delete',
-        'confirm_delete': 'Delete map "{name}"?',
+        'confirm_delete': 'Are you sure you want to delete "{name}"?',
         'delete_failed': 'Failed to delete: {error}',
         'delete_success': 'Map "{name}" deleted.',
         'error_download_failed': 'Failed to download: {error}',
@@ -348,6 +363,18 @@ LANGUAGES = {
         'sort_rating': 'Top Rated',
         'sort_views': 'Most Viewed',
         'browser_not_found': 'Browser not found. Please install Edge or Chrome.',
+        'onboarding_title': 'First Setup',
+        'onboarding_welcome': (
+            "Welcome to Rocket League Custom Map Loader!\n\n"
+            "To get started, we need to set up two key folders:\n"
+            "1. Where your game (Rocket League) is installed.\n"
+            "2. The folder where you want to store downloaded custom maps."
+        ),
+        'select_rl_folder': 'Select Rocket League Folder',
+        'select_custom_folder': 'Custom Maps Folder',
+        'continue_btn': 'Continue',
+        'setup_wizard': 'Setup Wizard',
+        'auto_update': 'Auto-update',
         'help_tab': 'Instructions',
         'help_text': '''How to use the application:
         1. Setup:
@@ -819,7 +846,8 @@ class MapLoaderApp(tk.Tk):
         super().__init__()
         self.title(tr('app_title'))
         self.geometry('1280x660')
-        self.resizable(False, False)
+        self.minsize(1000, 600)
+        self.resizable(True, True)
 
         self._cfg          = load_config()
         self.lang          = self._cfg.get('language', 'en')
@@ -854,16 +882,20 @@ class MapLoaderApp(tk.Tk):
         self._apply_win_style()
         self.protocol('WM_DELETE_WINDOW', self._on_close)
         
-        # Перевірка наявності шляхів при старті та автозавантаження списків
+        # Перевірка наявності шляхів при старті
         if not self.rl_root_var.get():
             self.auto_detect_rl()
         elif not self.maps_folder.get():
             self._update_maps_folder()
             
-        self.after(200, self._refresh_all) # Даємо вікну 200 мілісекунд на промальовку
-            
-        self.after(1000, lambda: self.load_bakkes_maps(reset=True))
-        self.after(3000, self.check_for_updates)
+        # Якщо після автодетекту все ще чогось бракує — показуємо екран першого налаштування
+        if not self.rl_root_var.get() or not self.custom_folder.get():
+            self.withdraw()  # Ховаємо головне вікно
+            self.after(100, self._show_onboarding_modal)
+        else:
+            self.after(200, self._refresh_all)
+            self.after(1000, lambda: self.load_bakkes_maps(reset=True))
+            self.after(3000, self.check_for_updates)
 
     def _set_lang(self, code):
         global CURRENT_LANGUAGE
@@ -890,7 +922,6 @@ class MapLoaderApp(tk.Tk):
         if HAS_PYWINSTYLES:
             try:
                 pywinstyles.apply_style(self, 'dark' if self.theme_mode.get() == 'dark' else 'light')
-                pywinstyles.apply_style(self, 'mica')
             except Exception:
                 pass
 
@@ -900,7 +931,16 @@ class MapLoaderApp(tk.Tk):
         inner  = ttk.Frame(canvas)
         inner.bind('<Configure>', lambda _: canvas.configure(scrollregion=canvas.bbox('all')))
         win = canvas.create_window((0, 0), window=inner, anchor='nw')
-        canvas.bind('<Configure>', lambda e: canvas.itemconfig(win, width=e.width))
+        
+        canvas._resize_job = None
+        def _on_canvas_resize(e):
+            if canvas._resize_job:
+                canvas.after_cancel(canvas._resize_job)
+            w = e.width
+            canvas._resize_job = canvas.after(50, lambda: canvas.itemconfig(win, width=w))
+            
+        canvas.bind('<Configure>', _on_canvas_resize)
+        
         canvas.configure(yscrollcommand=sb.set)
         canvas.pack(side='left', fill='both', expand=True)
         sb.pack(side='right', fill='y')
@@ -970,22 +1010,23 @@ class MapLoaderApp(tk.Tk):
             except Exception:
                 pass
 
+
+
         # ── Кнопка Налаштування ──
         btn_settings = ttk.Button(bar, text="🔧 " + self._t('settings'), command=self._open_settings)
         btn_settings.pack(side='right', padx=4)
-        Tooltip(btn_settings, self._t('tt_settings'))  # <--- Додано Tooltip
+        Tooltip(btn_settings, self._t('tt_settings'))
 
         if HAS_SV_TTK:
             icon = '🔆' if self.theme_mode.get() == 'dark' else '🌙'
             self._theme_btn = ttk.Button(bar, text=icon, width=3, command=self._toggle_theme)
             self._theme_btn.pack(side='right', padx=(5, 5))
-            Tooltip(self._theme_btn, self._t('tt_theme')) # <--- Додано Tooltip
+            Tooltip(self._theme_btn, self._t('tt_theme'))
 
         # Галочка автооновлення на верхній панелі
-        auto_update_text = "Автооновлення" if self.lang == 'uk' else "Auto-update"
         ttk.Checkbutton(
             bar, 
-            text=auto_update_text, 
+            text=self._t('auto_update'), 
             variable=self.auto_update_var, 
             command=self._save_cfg
         ).pack(side='left', padx=(15, 4))
@@ -993,30 +1034,116 @@ class MapLoaderApp(tk.Tk):
         # Кнопка ручної перевірки оновлень
         ttk.Button(bar, text=self._t('check_update'), command=self.manual_check_for_updates).pack(side='left', padx=4)
 
-        # Кнопку "Запуск гри" прибрано за бажанням користувача
+        # ── Вибір Мови ──
+        lang_cb = ttk.Combobox(bar, values=list(LANGUAGE_NAMES.values()), textvariable=self.language_opt, state='readonly', width=12)
+        lang_cb.pack(side='left', padx=(15, 5))
+        lang_cb.bind('<<ComboboxSelected>>', self._on_lang_change)
 
+
+    def _show_onboarding_modal(self):
+        win = tk.Toplevel(self)
+        win.title(self._t('onboarding_title'))
+        
+        width, height = 550, 450
+        self.update_idletasks()
+        # Оскільки self сховано, центруємо по екрану
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        win.geometry(f'{width}x{height}+{x}+{y}')
+        win.resizable(False, False)
+        
+        # Якщо закрили вікно першого налаштування - виходимо з програми
+        def on_close():
+            sys.exit(0)
+        win.protocol('WM_DELETE_WINDOW', on_close)
+
+        f = ttk.Frame(win, padding=20)
+        f.pack(fill='both', expand=True)
+
+        welcome_text = self._t('onboarding_welcome')
+        
+        ttk.Label(f, text=welcome_text, wraplength=500, justify='center', font=('Segoe UI', 10)).pack(pady=(0, 20))
+
+        # --- Rocket League Root ---
+        ttk.Label(f, text=self._t('rl_root'), font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        rl_frame = ttk.Frame(f)
+        rl_frame.pack(fill='x', pady=(5, 15))
+        
+        rl_entry = ttk.Entry(rl_frame, textvariable=self.rl_root_var, state='readonly')
+        rl_entry.pack(side='left', fill='x', expand=True, padx=(0, 5))
+        
+        def browse_rl():
+            p = filedialog.askdirectory(title=self._t('select_rl_folder'))
+            if p:
+                self.rl_root_var.set(p)
+                self._update_maps_folder()
+                check_ready()
+                
+        def auto_rl():
+            self.auto_detect_rl()
+            check_ready()
+
+        ttk.Button(rl_frame, text=self._t('auto_detect'), command=auto_rl).pack(side='left', padx=2)
+        ttk.Button(rl_frame, text=self._t('browse'), command=browse_rl).pack(side='left')
+
+        # --- Custom Maps Folder ---
+        ttk.Label(f, text=self._t('custom_maps_folder'), font=('Segoe UI', 9, 'bold')).pack(anchor='w')
+        cm_frame = ttk.Frame(f)
+        cm_frame.pack(fill='x', pady=(5, 20))
+        
+        cm_entry = ttk.Entry(cm_frame, textvariable=self.custom_folder, state='readonly')
+        cm_entry.pack(side='left', fill='x', expand=True, padx=(0, 5))
+        
+        def browse_cm():
+            p = filedialog.askdirectory(title=self._t('select_custom_folder'))
+            if p:
+                self.custom_folder.set(p)
+                check_ready()
+
+        ttk.Button(cm_frame, text=self._t('browse'), command=browse_cm).pack(side='left')
+
+        # --- Continue Button ---
+        btn_continue = ttk.Button(f, text=self._t('continue_btn'), style='Accent.TButton')
+        btn_continue.pack(side='bottom', fill='x', pady=10)
+
+        def complete_setup():
+            self._save_cfg()
+            win.destroy()
+            self.deiconify() # Показуємо головне вікно
+            self.after(200, self._refresh_all)
+            self.after(1000, lambda: self.load_bakkes_maps(reset=True))
+            self.after(3000, self.check_for_updates)
+
+        def check_ready():
+            if self.rl_root_var.get() and self.custom_folder.get():
+                btn_continue.config(state='normal', command=complete_setup)
+            else:
+                btn_continue.config(state='disabled', command=None)
+
+        check_ready() # Initial check
 
     def _open_settings(self):
         win = tk.Toplevel(self)
         win.title(self._t('settings'))
-        win.geometry('650x350') # Збільшено висоту вікна
+        
+        width, height = 650, 400
+        self.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() // 2) - (width // 2)
+        y = self.winfo_y() + (self.winfo_height() // 2) - (height // 2)
+        win.geometry(f'{width}x{height}+{x}+{y}')
+        
         win.resizable(False, False)
         win.transient(self)
         win.grab_set()
 
-        temp_lang = tk.StringVar(value=self.language_opt.get())
         temp_close = tk.StringVar(value=self._close_lbl.get())
         temp_root = tk.StringVar(value=self.rl_root_var.get())
         temp_maps = tk.StringVar(value=self.maps_folder.get())
+        temp_custom = tk.StringVar(value=self.custom_folder.get())
         temp_topmost = tk.BooleanVar(value=self.always_on_top_var.get())
 
         f = ttk.Frame(win, padding=15)
         f.pack(fill='both', expand=True)
-
-        # Мова
-        ttk.Label(f, text=self._t('language')).grid(row=0, column=0, sticky='w', pady=8)
-        lang_cb = ttk.Combobox(f, values=list(LANGUAGE_NAMES.values()), textvariable=temp_lang, state='readonly', width=25)
-        lang_cb.grid(row=0, column=1, sticky='w', pady=8, padx=10)
 
         # Поведінка при закритті
         ttk.Label(f, text=self._t('close_behavior')).grid(row=1, column=0, sticky='w', pady=8)
@@ -1055,34 +1182,46 @@ class MapLoaderApp(tk.Tk):
             
         ttk.Button(mf, text=self._t('refresh'), command=refresh_mf).pack(side='left', padx=4)
 
-        ttk.Checkbutton(f, text=self._t('always_on_top'), variable=temp_topmost).grid(row=4, column=0, columnspan=2, sticky='w', pady=(8, 0))
+        # Папка кастомних мап
+        ttk.Label(f, text=self._t('custom_maps_folder')).grid(row=4, column=0, sticky='w', pady=8)
+        cmf = ttk.Frame(f)
+        cmf.grid(row=4, column=1, sticky='w', pady=8, padx=10)
+        ttk.Entry(cmf, textvariable=temp_custom, width=40).pack(side='left')
+        
+        def browse_cm():
+            p = filedialog.askdirectory()
+            if p: temp_custom.set(p)
+            
+        ttk.Button(cmf, text=self._t('browse'), command=browse_cm).pack(side='left', padx=4)
+
+        ttk.Checkbutton(f, text=self._t('always_on_top'), variable=temp_topmost).grid(row=5, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
         bf = ttk.Frame(win, padding=10)
         bf.pack(side='bottom', fill='x')
 
         def save():
-            lang_changed = (self.language_opt.get() != temp_lang.get())
-            
-            self.language_opt.set(temp_lang.get())
             self._close_lbl.set(temp_close.get())
             self.rl_root_var.set(temp_root.get())
             self.maps_folder.set(temp_maps.get())
-
+            self.custom_folder.set(temp_custom.get())
             self.always_on_top_var.set(temp_topmost.get())
             self.attributes('-topmost', self.always_on_top_var.get())
             
             self._on_close_action_change()
             self._save_cfg()
-            self._refresh_standard()
+            self._refresh_all()
             
             win.destroy()
             
-            if lang_changed:
-                self._on_lang_change()
-
-        # Додано width=15 та збільшено відступи, щоб текст 100% влазив
         ttk.Button(bf, text=self._t('save'), width=15, command=save, style='Accent.TButton').pack(side='right', padx=5, pady=(0, 5))
         ttk.Button(bf, text=self._t('cancel'), width=15, command=win.destroy).pack(side='right', padx=5, pady=(0, 5))
+
+        def trigger_onboarding():
+            win.destroy()
+            self.withdraw()
+            self._show_onboarding_modal()
+            
+        ttk.Button(bf, text=self._t('setup_wizard'), command=trigger_onboarding).pack(side='left', padx=5, pady=(0, 5))
 
 
     def _build_bottom_logo(self):
@@ -1118,12 +1257,6 @@ class MapLoaderApp(tk.Tk):
         ttk.Label(sel, textvariable=self.sel_custom, foreground='#0078d4', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
         ttk.Label(sel, text=self._t('selected_standard')).pack(side='left', padx=(20, 0))
         ttk.Label(sel, textvariable=self.sel_standard, foreground='#d83b01', font=('Arial', 10, 'bold')).pack(side='left', padx=8)
-        
-        r = ttk.Frame(f)
-        r.pack(fill='x', pady=2)
-        ttk.Label(r, text=self._t('custom_maps_folder'), width=25).pack(side='left')
-        ttk.Entry(r, textvariable=self.custom_folder, width=50).pack(side='left', padx=8)
-        ttk.Button(r, text=self._t('browse'), command=self._browse_custom).pack(side='left')
 
         cols = ttk.Frame(f); cols.pack(fill='both', expand=True, pady=8)
         def col(title_key, with_pagination=False):
@@ -1222,23 +1355,71 @@ class MapLoaderApp(tk.Tk):
         
         lf = ttk.Frame(f)
         lf.pack(fill='both', expand=True)
-        _, self._dl_frame = self._make_scrollable(lf)
+        self._dl_canvas, self._dl_frame = self._make_scrollable(lf)
+        self._dl_canvas.bind('<Configure>', self._on_dl_canvas_resize, add='+')
+
+    def _on_dl_canvas_resize(self, event):
+        if not hasattr(self, '_dl_cards') or not self._dl_cards: return
+        if hasattr(self, '_dl_resize_job') and self._dl_resize_job:
+            self.after_cancel(self._dl_resize_job)
+        w = event.width
+        self._dl_resize_job = self.after(100, lambda: self._recalc_dl_grid(w))
+
+    def _recalc_dl_grid(self, width):
+        cols = max(1, width // 300)
+        if getattr(self, '_current_dl_cols', 0) == cols: return
+        self._current_dl_cols = cols
+        
+        for i in range(10):
+            self._dl_frame.columnconfigure(i, weight=0)
+        for i in range(cols):
+            self._dl_frame.columnconfigure(i, weight=1, pad=10)
+            
+        for idx, tile in enumerate(self._dl_cards):
+            r, c = divmod(idx, cols)
+            tile.grid(row=r, column=c, sticky='nsew', padx=8, pady=8)
 
     def _build_help_tab(self, parent):
         f = ttk.Frame(parent, padding=20)
         f.pack(fill='both', expand=True)
         
-        txt = tk.Text(f, wrap='word', font=('Arial', 11), relief='flat', padx=10, pady=10)
+        txt = tk.Text(f, wrap='word', font=('Segoe UI', 11), relief='flat', padx=10, pady=10)
         txt.pack(side='left', fill='both', expand=True)
         
         sb = ttk.Scrollbar(f, orient='vertical', command=txt.yview)
         sb.pack(side='right', fill='y')
         txt.configure(yscrollcommand=sb.set)
         
-        txt.insert('1.0', self._t('help_text'))
+        # Configure Markdown-like Tags
+        is_dark = HAS_SV_TTK and sv_ttk.get_theme() == 'dark'
+        txt.tag_configure('header', font=('Segoe UI', 13, 'bold'), spacing1=12, spacing3=6, foreground='#4DA8DA' if is_dark else '#0078D7')
+        txt.tag_configure('bold', font=('Segoe UI', 11, 'bold'))
+        txt.tag_configure('bullet', lmargin1=15, lmargin2=30, spacing1=3, spacing3=3)
+        txt.tag_configure('normal', lmargin1=10, lmargin2=10)
+        
+        lines = self._t('help_text').split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                txt.insert('end', '\n', 'normal')
+                continue
+                
+            style = 'normal'
+            if line.startswith('### '):
+                line = line[4:]
+                style = 'header'
+            elif line.startswith('• '):
+                style = 'bullet'
+                
+            parts = line.split('**')
+            for i, part in enumerate(parts):
+                tags = (style, 'bold') if i % 2 == 1 else (style,)
+                txt.insert('end', part, tags)
+            txt.insert('end', '\n', style)
+
         txt.configure(state='disabled')
         
-        if HAS_SV_TTK and sv_ttk.get_theme() == 'dark':
+        if is_dark:
             txt.configure(bg='#1e1e1e', fg='#ffffff', insertbackground='#ffffff')
         else:
             txt.configure(bg='#f3f3f3', fg='#000000', insertbackground='#000000')
@@ -1408,6 +1589,8 @@ class MapLoaderApp(tk.Tk):
         
         folder = self.custom_folder.get().strip()
         if not folder or not os.path.isdir(folder):
+            if hasattr(self, '_local_btn_next'): self._local_btn_next.config(state='disabled')
+            if hasattr(self, '_local_btn_prev'): self._local_btn_prev.config(state='disabled')
             return
             
         maps = list_custom_maps(folder)
@@ -1418,6 +1601,7 @@ class MapLoaderApp(tk.Tk):
         # Pagination logic
         ITEMS_PER_PAGE = 20
         total_pages = max(1, (len(maps) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+        self.local_total_pages = total_pages
         if hasattr(self, 'local_current_page'):
             if self.local_current_page > total_pages:
                 self.local_current_page = total_pages
@@ -1442,6 +1626,7 @@ class MapLoaderApp(tk.Tk):
         
         ITEMS_PER_PAGE = 30
         total_pages = max(1, (len(maps) + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE)
+        self.std_total_pages = total_pages
         if hasattr(self, 'std_current_page'):
             if self.std_current_page > total_pages:
                 self.std_current_page = max(1, total_pages)
@@ -1518,7 +1703,7 @@ class MapLoaderApp(tk.Tk):
             
         sel_btn = ttk.Button(bot_frame, text=sel_text, style=btn_style,
                              command=lambda n=filename: self._select_map(n, True))
-        sel_btn.pack(side='left')
+        sel_btn.pack(side='left', fill='x', expand=True, padx=(0, 10))
 
         del_btn = ttk.Button(bot_frame, text='✕', width=3, command=lambda: self._delete_custom(filename))
         del_btn.pack(side='right')
@@ -1594,9 +1779,35 @@ class MapLoaderApp(tk.Tk):
         asyncio.run_coroutine_threadsafe(async_fetch_img(), ASYNC_LOOP)
 
     def _std_tile(self, parent, name):
-        btn_style = 'Accent.TButton' if self.sel_standard.get() == name else 'TButton'
-        ttk.Button(parent, text=name, width=28, style=btn_style,
-                   command=lambda n=name: self._select_map(n, False)).pack(pady=1, padx=4, fill='x')
+        is_selected = self.sel_standard.get() == name
+        
+        # Оформляємо картку
+        tile = ttk.Frame(parent, relief='raised' if is_selected else 'flat', borderwidth=1)
+        tile.pack(fill='x', pady=2, padx=4)
+        
+        info_f = ttk.Frame(tile)
+        info_f.pack(side='left', fill='both', expand=True, padx=8, pady=6)
+        
+        # Гарна назва карти (без розширення та підкреслень)
+        display_name = name.replace('.upk', '').replace('.udk', '').replace('.pak', '').replace('_', ' ')
+        
+        title_font = ('Segoe UI', 10, 'bold') if is_selected else ('Segoe UI', 10)
+        title_color = '#d83b01' if is_selected else ''
+        
+        lbl_title = ttk.Label(info_f, text=f"🎮 {display_name}", font=title_font)
+        if title_color:
+            lbl_title.config(foreground=title_color)
+        lbl_title.pack(anchor='w')
+        
+        # Оригінальний файл дрібним шрифтом
+        ttk.Label(info_f, text=name, font=('Segoe UI', 8), foreground='gray').pack(anchor='w')
+        
+        # Кнопка вибору (або вже вибрано)
+        if is_selected:
+            ttk.Label(tile, text="✅", font=('Segoe UI', 14)).pack(side='right', padx=10)
+        else:
+            ttk.Button(tile, text="Обрати" if self.lang == 'uk' else "Select", width=8,
+                       command=lambda n=name: self._select_map(n, False)).pack(side='right', padx=8, pady=4)
         
     def _select_map(self, name, is_custom):
         if is_custom:
@@ -1644,11 +1855,17 @@ class MapLoaderApp(tk.Tk):
         for w in self._replace_frame.winfo_children(): w.destroy()
         for e in self.replacements:
             row = ttk.Frame(self._replace_frame, relief='raised', borderwidth=1)
-            row.pack(fill='x', pady=3, padx=3)
-            ttk.Label(row, text=f"{e['standard_map']} → {e['custom_map']}", font=('Arial', 9)
-                      ).pack(side='left', padx=6, pady=4)
-            ttk.Button(row, text=self._t('undo'), width=8,
-                       command=lambda en=e: self._undo(en)).pack(side='right', padx=4, pady=4)
+            row.pack(fill='x', pady=4, padx=4)
+            
+            info_f = ttk.Frame(row)
+            info_f.pack(side='left', fill='both', expand=True, padx=8, pady=6)
+            
+            ttk.Label(info_f, text=f"🎮 {e['standard_map']}", font=('Arial', 9, 'bold'), foreground='#d83b01').pack(anchor='w')
+            ttk.Label(info_f, text="▼ " + self._t('replaced_with'), font=('Arial', 8), foreground='gray').pack(anchor='w', pady=(2, 2))
+            ttk.Label(info_f, text=f"📂 {e['custom_map']}", font=('Arial', 9, 'bold'), foreground='#0078d4').pack(anchor='w')
+            
+            ttk.Button(row, text=self._t('undo'), width=10,
+                       command=lambda en=e: self._undo(en)).pack(side='right', padx=8, pady=4)
 
     def _local_update_page_ui(self):
         if hasattr(self, '_local_page_lbl'):
@@ -1656,7 +1873,8 @@ class MapLoaderApp(tk.Tk):
             self._local_btn_prev.config(state='disabled' if self.local_current_page <= 1 else 'normal')
 
     def _local_next_page(self):
-        self.local_current_page += 1; self._local_update_page_ui(); self._refresh_custom()
+        if hasattr(self, 'local_total_pages') and self.local_current_page < self.local_total_pages:
+            self.local_current_page += 1; self._local_update_page_ui(); self._refresh_custom()
 
     def _local_prev_page(self):
         if self.local_current_page > 1:
@@ -1668,7 +1886,8 @@ class MapLoaderApp(tk.Tk):
             self._std_btn_prev.config(state='disabled' if self.std_current_page <= 1 else 'normal')
 
     def _std_next_page(self):
-        self.std_current_page += 1; self._std_update_page_ui(); self._refresh_standard()
+        if hasattr(self, 'std_total_pages') and self.std_current_page < self.std_total_pages:
+            self.std_current_page += 1; self._std_update_page_ui(); self._refresh_standard()
 
     def _std_prev_page(self):
         if self.std_current_page > 1:
@@ -1787,14 +2006,24 @@ class MapLoaderApp(tk.Tk):
             self._btn_next.config(state='normal' if len(maps) >= 10 else 'disabled')
             return
         self._btn_next.config(state='normal' if len(maps) >= 10 else 'disabled')
-        COLS = 4
-        for i in range(COLS):
+        
+        self._dl_cards = []
+        # Fallback width if canvas hasn't fully rendered yet
+        w = self._dl_canvas.winfo_width()
+        cols = max(1, w // 300) if w > 50 else 4
+        self._current_dl_cols = cols
+        
+        for i in range(10):
+            self._dl_frame.columnconfigure(i, weight=0)
+        for i in range(cols):
             self._dl_frame.columnconfigure(i, weight=1, pad=10)
+            
         for idx, m in enumerate(maps):
-            r, c = divmod(idx, COLS)
+            r, c = divmod(idx, cols)
             tile = ttk.Frame(self._dl_frame, relief='raised', borderwidth=2)
             tile.grid(row=r, column=c, sticky='nsew', padx=8, pady=8)
             self._build_dl_tile(tile, m)
+            self._dl_cards.append(tile)
 
     def _build_dl_tile(self, tile, m):
         container = ttk.Frame(tile)
@@ -1849,61 +2078,15 @@ class MapLoaderApp(tk.Tk):
         )
 
         # --- Кнопка завантаження в окремому рядку знизу ---
-        btn_frame = ttk.Frame(bot_frame)
-        btn_frame.pack(side='top', fill='x')
+        btn_frame = ttk.Frame(info_frame)
+        btn_frame.pack(side='bottom', fill='x')
 
         btn_text = ('✓ Завантажено' if self.lang == 'uk' else '✓ Downloaded') if downloaded else self._t('download')
         btn_style = 'TButton' if downloaded else 'Accent.TButton'
 
         dl_btn = ttk.Button(btn_frame, text=btn_text, style=btn_style,
                    command=lambda mi=m: self._download_map(mi))
-        dl_btn.pack(side='left', fill='x', expand=True, padx=(0, 4))
-        
-        info_text = 'Деталі' if self.lang == 'uk' else 'Details'
-        info_btn = ttk.Button(btn_frame, text=info_text, width=8)
-        info_btn.pack(side='right')
-
-        # ── Вбудований опис мапи ──
-        desc_frame = ttk.Frame(info_frame)
-        desc_lbl = ttk.Label(desc_frame, text="", justify='left', font=('Segoe UI', 9), foreground='gray')
-        desc_lbl.bind('<Configure>', lambda e: desc_lbl.config(wraplength=max(200, e.width - 10)))
-        desc_lbl.pack(fill='both', expand=True, pady=(5,0))
-        
-        desc_state = {'loaded': False, 'visible': False}
-        
-        def _toggle_desc():
-            if desc_state['visible']:
-                desc_frame.pack_forget()
-                desc_state['visible'] = False
-                info_btn.config(text='Деталі' if self.lang == 'uk' else 'Details')
-            else:
-                desc_frame.pack(side='bottom', fill='x', before=btn_frame, pady=(5,0))
-                desc_state['visible'] = True
-                info_btn.config(text='Сховати' if self.lang == 'uk' else 'Hide')
-                
-                if not desc_state['loaded']:
-                    desc_lbl.config(text='Завантаження опису...' if self.lang == 'uk' else 'Loading description...')
-                    def _fetch():
-                        try:
-                            import urllib.request
-                            from bs4 import BeautifulSoup
-                            req = urllib.request.Request(m.get('page_url', ''), headers={'User-Agent': 'Mozilla/5.0'})
-                            with urllib.request.urlopen(req, timeout=10) as r:
-                                html = r.read().decode('utf-8')
-                            soup = BeautifulSoup(html, 'html.parser')
-                            h = soup.find(lambda t: t.name in ['h2', 'h3'] and 'Map Details' in t.get_text())
-                            if h and h.find_next_sibling():
-                                d = h.find_next_sibling().get_text(separator='\n\n', strip=True)
-                            else:
-                                d = 'Опис не знайдено на сторінці.' if self.lang == 'uk' else 'Description not found.'
-                            self.after(0, lambda: desc_lbl.config(text=d))
-                            desc_state['loaded'] = True
-                        except Exception as e:
-                            self.after(0, lambda err=e: desc_lbl.config(text=f"Error: {err}"))
-                    import threading
-                    threading.Thread(target=_fetch, daemon=True).start()
-                    
-        info_btn.config(command=_toggle_desc)
+        dl_btn.pack(fill='x', expand=True)
 
         # ── Асинхронне завантаження картинки ──
         async def async_fetch_img():
@@ -2139,5 +2322,44 @@ class MapLoaderApp(tk.Tk):
         threading.Thread(target=_do_update, daemon=True).start()
 
 if __name__ == '__main__':
-    app = MapLoaderApp()
-    app.mainloop()
+    if ENABLE_PROFILING or '--profile' in sys.argv:
+        import cProfile
+        import pstats
+        import tracemalloc
+        
+        logging.info("=== PROFILING MODE ENABLED ===")
+        tracemalloc.start()
+        profiler = cProfile.Profile()
+        profiler.enable()
+        
+        app = MapLoaderApp()
+        app.mainloop()
+        
+        profiler.disable()
+        
+        print("\n" + "="*60)
+        print("📊 RAM USAGE (tracemalloc snapshot)")
+        print("="*60)
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
+        for stat in top_stats[:15]:
+            print(stat)
+            
+        print("\n" + "="*60)
+        print("⏱ CPU PROFILING (cProfile)")
+        print("="*60)
+        stats = pstats.Stats(profiler).sort_stats('cumtime')
+        stats.print_stats(30)
+        
+        with open('profiler_stats.txt', 'w', encoding='utf-8') as f:
+            f.write("=== CPU PROFILING ===\n")
+            stats = pstats.Stats(profiler, stream=f).sort_stats('cumtime')
+            stats.print_stats(50)
+            f.write("\n=== RAM ALLOCATIONS ===\n")
+            for stat in top_stats[:30]:
+                f.write(str(stat) + '\n')
+                
+        print("\n[!] Детальну статистику збережено у profiler_stats.txt")
+    else:
+        app = MapLoaderApp()
+        app.mainloop()

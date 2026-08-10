@@ -1,0 +1,12 @@
+Release v1.3.1: Complete UI overhaul, setup wizard, and performance optimizations
+
+- Added mandatory First Setup onboarding screen for new users
+- Cleaned up Local Maps tab by moving folder paths to Settings
+- Added Setup Wizard button to Settings
+- Re-designed the Standard Maps selection list into cards
+- Re-designed the Replacement History list with colors and icons
+- Added Auto-Update toggle checkbox to top bar
+- Fully localized all new UI components to Ukrainian and English
+- Integrated cProfile and tracemalloc tools for development tracking
+- Fixed 'replaced_with' missing translation key
+- Updated screenshots for v1.3.1
