@@ -1,4 +1,4 @@
-VERSION = "1.3.1"  # Поточна версія
+VERSION = "1.3.2"  # Поточна версія
 GITHUB_REPO = "ItsAndreww/Rocket_League_Custom_Map_Loader" 
 
 ENABLE_PROFILING = False
@@ -137,10 +137,8 @@ from tkinter import filedialog, messagebox, ttk
 import json
 import urllib.request
 import shlex
-import threading
 import zipfile
 import tempfile
-import time
 import string
 
 from PIL import Image, ImageTk, ImageDraw
@@ -289,6 +287,19 @@ LANGUAGES = {
 ### 🔄 4. Відновлення оригінальних карт
 • Щоб повернути стандартну карту, натисніть **"Відновити"** у списку **"Поточні заміни"**.
 • Або просто **закрийте програму** (якщо в налаштуваннях стоїть "Відновити і вийти"), і вона **миттєво поверне всі карти на свої місця!**''',
+        'map_in_use': 'Мапа використовується грою. Закрийте гру або вийдіть у головне меню.',
+        'no_releases': 'Релізів на GitHub ще немає.',
+        'github_conn_error': 'Помилка підключення до GitHub:\n{error}',
+        'update_available_prompt': 'Знайдено нову версію програми: {version}.\nОновити зараз?',
+        'no_exe_in_release': 'Не знайдено .exe файлу в релізі GitHub.',
+        'downloading_update': 'Завантаження оновлення...',
+        'update_success_restart': 'Оновлення завантажено! Програма зараз перезапуститься.',
+        'update_only_frozen': 'Оновлення працює тільки для скомпільованого .exe файлу.',
+        'update_failed': 'Не вдалося оновити: {error}',
+        'backup_not_found': 'Файл резервної копії не знайдено.',
+        'selected_btn': '✓ Обрано',
+        'select_btn': 'Обрати',
+        'downloaded_btn': '✓ Завантажено',
     },
     'en': {
         'always_on_top': 'Always on top',
@@ -380,7 +391,7 @@ LANGUAGES = {
         1. Setup:
         • Go to "⚙️ Settings" on the top bar.
         • Provide your Rocket League installation path (click "Auto detect").
-        • Choose a folder on your PC to store custom maps (in the "Local Maps" tab).
+        • Choose a folder on your PC to store custom maps (in "⚙️ Settings").
 
         2. Playing a Custom Map:
         • In the "Local Maps" tab, select a custom map from the left list.
@@ -396,6 +407,19 @@ LANGUAGES = {
         • To restore an original map, click "Undo" in the replacement history list.
         • Or simply close the app (if "Restore and exit" is selected in settings), and it will restore everything automatically!
         ''',
+        'map_in_use': 'Map file is in use by the game. Please exit to the main menu or close Rocket League.',
+        'no_releases': 'No releases found on GitHub.',
+        'github_conn_error': 'Failed to connect to GitHub:\n{error}',
+        'update_available_prompt': 'A new version is available: {version}.\nUpdate now?',
+        'no_exe_in_release': 'No .exe file found in the GitHub release.',
+        'downloading_update': 'Downloading update...',
+        'update_success_restart': 'Update downloaded! The application will now restart.',
+        'update_only_frozen': 'Update is only available for the compiled .exe file.',
+        'update_failed': 'Failed to update: {error}',
+        'backup_not_found': 'Backup map file not found.',
+        'selected_btn': '✓ Selected',
+        'select_btn': 'Select',
+        'downloaded_btn': '✓ Downloaded',
     }
 }
 
@@ -407,7 +431,6 @@ def tr(key, **kwargs):
 # ════════════════════════════════════════════════════════════════
 # CONFIG
 # ════════════════════════════════════════════════════════════════
-import json
 
 def load_config():
     path = Path(_data_dir()) / 'config.json'
@@ -770,7 +793,7 @@ def launch_rocket_league(rl_root: str, extra_args: str = ''):
     if not exe:
         raise FileNotFoundError('RocketLeague.exe not found')
     args = [exe] + (shlex.split(extra_args) if extra_args else [])
-    return subprocess.Popen(args, cwd=os.path.dirname(exe))
+    return subprocess.Popen(args, cwd=os.path.dirname(exe), creationflags=0)
 
 
 def is_custom_map_file(path: str) -> bool:
@@ -1052,9 +1075,13 @@ class MapLoaderApp(tk.Tk):
         win.geometry(f'{width}x{height}+{x}+{y}')
         win.resizable(False, False)
         
-        # Якщо закрили вікно першого налаштування - виходимо з програми
+        # Якщо закрили вікно першого налаштування - виходимо з програми тільки якщо обов'язкові папки ще не налаштовано
         def on_close():
-            sys.exit(0)
+            if self.rl_root_var.get() and self.custom_folder.get():
+                win.destroy()
+                self.deiconify()
+            else:
+                sys.exit(0)
         win.protocol('WM_DELETE_WINDOW', on_close)
 
         f = ttk.Frame(win, padding=20)
@@ -1167,6 +1194,14 @@ class MapLoaderApp(tk.Tk):
                 mf_found = find_maps_folder(root)
                 if mf_found: temp_maps.set(mf_found)
                 
+                if not temp_custom.get():
+                    custom_maps_dir = os.path.join(root, "CustomMaps")
+                    try:
+                        os.makedirs(custom_maps_dir, exist_ok=True)
+                        temp_custom.set(custom_maps_dir)
+                    except Exception as e:
+                        logging.error(f"Failed to auto-create CustomMaps folder: {e}")
+
         ttk.Button(rf, text=self._t('browse'), command=browse_rl).pack(side='left', padx=4)
         ttk.Button(rf, text=self._t('auto_detect'), command=auto_detect).pack(side='left', padx=4)
 
@@ -1535,8 +1570,16 @@ class MapLoaderApp(tk.Tk):
     def auto_detect_rl(self):
         root = find_rocket_league_root()
         if root:
-            self.rl_root_var.set(root); self._save_cfg()
+            self.rl_root_var.set(root)
             self._update_maps_folder()
+            if not self.custom_folder.get():
+                custom_maps_dir = os.path.join(root, "CustomMaps")
+                try:
+                    os.makedirs(custom_maps_dir, exist_ok=True)
+                    self.custom_folder.set(custom_maps_dir)
+                except Exception as e:
+                    logging.error(f"Failed to auto-create CustomMaps folder: {e}")
+            self._save_cfg()
             self.status_var.set(self._t('auto_detect_success'))
         else:
             self.status_var.set(self._t('auto_detect_fail'))
@@ -1697,9 +1740,9 @@ class MapLoaderApp(tk.Tk):
         btn_style = 'Accent.TButton' if is_selected else 'TButton'
         
         if is_selected:
-            sel_text = '✓ Обрано' if self.lang == 'uk' else '✓ Selected'
+            sel_text = self._t('selected_btn')
         else:
-            sel_text = 'Обрати' if self.lang == 'uk' else 'Select'
+            sel_text = self._t('select_btn')
             
         sel_btn = ttk.Button(bot_frame, text=sel_text, style=btn_style,
                              command=lambda n=filename: self._select_map(n, True))
@@ -1806,7 +1849,7 @@ class MapLoaderApp(tk.Tk):
         if is_selected:
             ttk.Label(tile, text="✅", font=('Segoe UI', 14)).pack(side='right', padx=10)
         else:
-            ttk.Button(tile, text="Обрати" if self.lang == 'uk' else "Select", width=8,
+            ttk.Button(tile, text=self._t('select_btn'), width=8,
                        command=lambda n=name: self._select_map(n, False)).pack(side='right', padx=8, pady=4)
         
     def _select_map(self, name, is_custom):
@@ -1895,14 +1938,14 @@ class MapLoaderApp(tk.Tk):
 
     def _undo(self, entry):
         if not os.path.isfile(entry['backup_path']):
-            messagebox.showerror(self._t('error_title'), self._t('error_custom_not_found'))
+            messagebox.showerror(self._t('error_title'), self._t('backup_not_found'))
             return
         try:
             shutil.copy2(entry['backup_path'], entry['standard_path'])
             self.replacements.remove(entry)
             self._refresh_standard(); self._render_replacements()
         except PermissionError:
-            messagebox.showerror(self._t('error_title'), "Мапа використовується грою. Закрийте гру або вийдіть у головне меню.")
+            messagebox.showerror(self._t('error_title'), self._t('map_in_use'))
         except Exception as e:
             messagebox.showerror(self._t('error_title'), self._t('replace_failed', error=e))
 
@@ -1946,7 +1989,7 @@ class MapLoaderApp(tk.Tk):
                                         self._t('replace_success', custom=cm, standard=sm, backup=bak_name)))
                     self.after(0, lambda: self.status_var.set(self._t('replace_status')))
                 except PermissionError:
-                    self.after(0, lambda: messagebox.showerror(self._t('error_title'), "Мапа використовується грою. Закрийте гру або вийдіть у головне меню."))
+                    self.after(0, lambda: messagebox.showerror(self._t('error_title'), self._t('map_in_use')))
                 except Exception as e:
                     self.after(0, lambda e=e: messagebox.showerror(self._t('error_title'), self._t('replace_failed', error=e)))
                     try:
@@ -2081,7 +2124,7 @@ class MapLoaderApp(tk.Tk):
         btn_frame = ttk.Frame(info_frame)
         btn_frame.pack(side='bottom', fill='x')
 
-        btn_text = ('✓ Завантажено' if self.lang == 'uk' else '✓ Downloaded') if downloaded else self._t('download')
+        btn_text = self._t('downloaded_btn') if downloaded else self._t('download')
         btn_style = 'TButton' if downloaded else 'Accent.TButton'
 
         dl_btn = ttk.Button(btn_frame, text=btn_text, style=btn_style,
@@ -2210,8 +2253,20 @@ class MapLoaderApp(tk.Tk):
             api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             try:
                 req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-                with urllib.request.urlopen(req, timeout=10):
-                    pass
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+
+                latest_tag = data.get('tag_name', '').lstrip('v').strip()
+                current_tag = VERSION.lstrip('v').strip()
+
+                def parse_v(v): 
+                    return tuple(int(x) for x in v.split(".") if x.isdigit())
+
+                parsed_latest = parse_v(latest_tag)
+                parsed_current = parse_v(current_tag)
+
+                if parsed_latest and parsed_current and parsed_latest > parsed_current:
+                    self.after(0, lambda: self._prompt_update(latest_tag, data))
             except HTTPError as e:
                 logging.error(f"Сервер відхилив запит перевірки оновлень. Код: {e.code}")
             except URLError as e:
@@ -2239,7 +2294,7 @@ class MapLoaderApp(tk.Tk):
                 self.after(0, self._hide_progress)
 
                 if not latest_tag:
-                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Релізів на GitHub ще немає."))
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), self._t('no_releases')))
                     return
 
                 def parse_v(v): 
@@ -2254,24 +2309,24 @@ class MapLoaderApp(tk.Tk):
                     self.after(0, lambda: messagebox.showinfo(self._t('info_title'), self._t('no_updates')))
             except Exception as e:
                 self.after(0, self._hide_progress)
-                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Помилка підключення до GitHub:\n{err}"))
+                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), self._t('github_conn_error', error=err)))
 
         threading.Thread(target=_task, daemon=True).start()
 
     
     def _prompt_update(self, latest_tag, release_data):
-        if messagebox.askyesno(self._t('info_title'), f"Знайдено нову версію програми: {latest_tag}.\nОновити зараз?"):
+        if messagebox.askyesno(self._t('info_title'), self._t('update_available_prompt', version=latest_tag)):
             self._download_and_apply_update(release_data)
 
     def _download_and_apply_update(self, release_data):
         assets = release_data.get('assets', [])
-        download_url = next((a['browser_download_url'] for a in assets if a['name'].endswith('.exe')), None)
+        download_url = next((a['browser_download_url'] for a in assets if a['name'].lower().endswith('.exe')), None)
 
         if not download_url:
-            messagebox.showerror(self._t('error_title'), "Не знайдено .exe файлу в релізі GitHub.")
+            messagebox.showerror(self._t('error_title'), self._t('no_exe_in_release'))
             return
 
-        self._show_progress("Завантаження оновлення...")
+        self._show_progress(self._t('downloading_update'))
 
         def _do_update():
             exe_path = sys.executable
@@ -2285,17 +2340,23 @@ class MapLoaderApp(tk.Tk):
                         shutil.copyfileobj(response, out_file)
 
                     self.after(0, self._hide_progress)
-                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення завантажено! Програма зараз перезапуститься."))
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), self._t('update_success_restart')))
 
                     import tempfile
                     bat_path = os.path.join(tempfile.gettempdir(), "rl_updater.bat")
                     with open(bat_path, "w", encoding="utf-8") as f:
                         f.write('@echo off\n')
                         f.write('chcp 65001 > nul\n')
-                        f.write('ping 127.0.0.1 -n 3 > nul\n')
-                        f.write(f'if exist "{old_exe_path}" del "{old_exe_path}" > nul 2>&1\n')
-                        f.write(f'rename "{exe_path}" "{os.path.basename(old_exe_path)}"\n')
-                        f.write(f'rename "{new_exe_path}" "{os.path.basename(exe_path)}"\n')
+                        f.write('set /a count=0\n')
+                        f.write(':loop\n')
+                        f.write('ping 127.0.0.1 -n 2 > nul\n')
+                        f.write(f'if exist "{old_exe_path}" del /f /q "{old_exe_path}" > nul 2>&1\n')
+                        f.write(f'rename "{exe_path}" "{os.path.basename(old_exe_path)}" > nul 2>&1\n')
+                        f.write(f'if exist "{exe_path}" (\n')
+                        f.write('    set /a count+=1\n')
+                        f.write('    if %count% lss 10 goto loop\n')
+                        f.write(')\n')
+                        f.write(f'move /y "{new_exe_path}" "{exe_path}" > nul 2>&1\n')
                         f.write(f'start "" "{exe_path}"\n')
                         f.write('del "%~f0"\n')
 
@@ -2310,11 +2371,11 @@ class MapLoaderApp(tk.Tk):
                     self.after(0, self.destroy)
                 else:
                     self.after(0, self._hide_progress)
-                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), "Оновлення працює тільки для скомпільованого .exe файлу."))
+                    self.after(0, lambda: messagebox.showinfo(self._t('info_title'), self._t('update_only_frozen')))
             
             except Exception as e:
                 self.after(0, self._hide_progress)
-                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), f"Не вдалося оновити: {err}"))
+                self.after(0, lambda err=e: messagebox.showerror(self._t('error_title'), self._t('update_failed', error=err)))
                 if os.path.exists(new_exe_path):
                     try: os.remove(new_exe_path)
                     except: pass
